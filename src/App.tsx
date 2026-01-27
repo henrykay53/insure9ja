@@ -23,7 +23,7 @@ function App() {
       
 
 
-      <div className='flex justify-center mt-10 bg-green-500 hover:bg-green-300 p-10 w-1.5 mx-auto'>Hello</div>
+
 
     </>
   )
