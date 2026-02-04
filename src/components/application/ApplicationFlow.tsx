@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-// import  { GoalType } from './types';
-
 import { ProgressIndicator } from './ProgressIndicator';
 import { Step1GoalSelection } from './Step1GoalSelection';
 import { Step2ARefundSchedule } from './Step2ARefundSchedule';
@@ -9,6 +7,10 @@ import { Step3ARefund5Years } from './Step3ARefund5Years';
 import { Step3BRefund3Years } from './Step3BRefund3Years';
 import { Step2BNonRefundable } from './Step2BNonRefundable';
 import { Step2CAnnuity } from './Step2CAnnuity';
+import { Step4Summary } from './Step4Summary';
+import { Step5PersonalDetails } from './Step5PersonalDetails';
+import { Step6IdentityVerification } from './Step6IdentityVerification';
+import { Step7Beneficiaries } from './Step7Beneficiaries';
 
 interface ApplicationFlowProps {
   onClose: () => void;
@@ -17,12 +19,34 @@ interface ApplicationFlowProps {
 export type GoalType = 'non-refundable' | 'refundable' | 'annuity' | null;
 export type RefundSchedule = '5-years' | '3-years-9' | null;
 
+export interface Beneficiary {
+  id: string;
+  fullName: string;
+  relationship: string;
+  dateOfBirth: string;
+  phoneNumber: string;
+  percentage: number;
+}
+
 export interface ApplicationData {
   goal: GoalType;
   refundSchedule: RefundSchedule;
   coverageAmount: string;
   dateOfBirth: string;
   payMonthlyForLife: boolean;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  email: string;
+  personalDOB: string;
+  bvn: string;
+  nin: string;
+  idType: string;
+  idNumber: string;
+  issuingAuthority: string;
+  issueDate: string;
+  expiryDate: string;
+  beneficiaries: Beneficiary[];
 }
 
 export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
@@ -34,12 +58,25 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
     coverageAmount: '',
     dateOfBirth: '',
     payMonthlyForLife: false,
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    email: '',
+    personalDOB: '',
+    bvn: '',
+    nin: '',
+    idType: '',
+    idNumber: '',
+    issuingAuthority: '',
+    issueDate: '',
+    expiryDate: '',
+    beneficiaries: [],
   });
 
   const getTotalSteps = () => {
-    if (data.goal === 'refundable') return 4;
-    if (data.goal === 'non-refundable') return 2;
-    if (data.goal === 'annuity') return 2;
+    if (data.goal === 'refundable') return 7;
+    if (data.goal === 'non-refundable') return 6;
+    if (data.goal === 'annuity') return 6;
     return 6;
   };
 
@@ -51,6 +88,11 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
   const goToPreviousStep = () => {
     setDirection('backward');
     setCurrentStep((prev) => prev - 1);
+  };
+
+  const goToStep = (step: number) => {
+    setDirection(step > currentStep ? 'forward' : 'backward');
+    setCurrentStep(step);
   };
 
   const updateData = (updates: Partial<ApplicationData>) => {
@@ -101,30 +143,154 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
+      if (currentStep === 4) {
+        return (
+          <Step4Summary
+            data={data}
+            onEdit={goToStep}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 5) {
+        return (
+          <Step5PersonalDetails
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 6) {
+        return (
+          <Step6IdentityVerification
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 7) {
+        return (
+          <Step7Beneficiaries
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
     }
 
     // Non-refundable premium flow
-    if (data.goal === 'non-refundable' && currentStep === 2) {
-      return (
-        <Step2BNonRefundable
-          data={data}
-          onUpdate={updateData}
-          onContinue={goToNextStep}
-          onBack={goToPreviousStep}
-        />
-      );
+    if (data.goal === 'non-refundable') {
+      if (currentStep === 2) {
+        return (
+          <Step2BNonRefundable
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 3) {
+        return (
+          <Step4Summary
+            data={data}
+            onEdit={goToStep}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 4) {
+        return (
+          <Step5PersonalDetails
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 5) {
+        return (
+          <Step6IdentityVerification
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 6) {
+        return (
+          <Step7Beneficiaries
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
     }
 
     // Annuity flow
-    if (data.goal === 'annuity' && currentStep === 2) {
-      return (
-        <Step2CAnnuity
-          data={data}
-          onUpdate={updateData}
-          onContinue={goToNextStep}
-          onBack={goToPreviousStep}
-        />
-      );
+    if (data.goal === 'annuity') {
+      if (currentStep === 2) {
+        return (
+          <Step2CAnnuity
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 3) {
+        return (
+          <Step4Summary
+            data={data}
+            onEdit={goToStep}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 4) {
+        return (
+          <Step5PersonalDetails
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 5) {
+        return (
+          <Step6IdentityVerification
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 6) {
+        return (
+          <Step7Beneficiaries
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
     }
 
     return <div>Step not found</div>;

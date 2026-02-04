@@ -7,7 +7,7 @@ interface HeroProps {
 
 export function Hero({ onStartApplication }: HeroProps) {
   return (
-    <section className="relative bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+    <section className="relative bg-linear-to-b from-gray-50 to-white overflow-hidden">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-20 right-10 opacity-5">
