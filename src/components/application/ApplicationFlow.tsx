@@ -6,11 +6,15 @@ import { Step2ARefundSchedule } from './Step2ARefundSchedule';
 import { Step3ARefund5Years } from './Step3ARefund5Years';
 import { Step3BRefund3Years } from './Step3BRefund3Years';
 import { Step2BNonRefundable } from './Step2BNonRefundable';
+import { Step2CAnnuityOption } from './Step2CAnnuityOption';
 import { Step2CAnnuity } from './Step2CAnnuity';
 import { Step4Summary } from './Step4Summary';
 import { Step5PersonalDetails } from './Step5PersonalDetails';
 import { Step6IdentityVerification } from './Step6IdentityVerification';
 import { Step7Beneficiaries } from './Step7Beneficiaries';
+import { Step8HealthInformation } from './Step8HealthInformation';
+import { Step9ReviewSubmit } from './Step9ReviewSubmit';
+import { ApplicationReceived } from './ApplicationReceived';
 
 interface ApplicationFlowProps {
   onClose: () => void;
@@ -18,6 +22,7 @@ interface ApplicationFlowProps {
 
 export type GoalType = 'non-refundable' | 'refundable' | 'annuity' | null;
 export type RefundSchedule = '5-years' | '3-years-9' | null;
+export type AnnuityOption = 'pfa' | 'lump-sum' | 'deferred' | null;
 
 export interface Beneficiary {
   id: string;
@@ -31,6 +36,7 @@ export interface Beneficiary {
 export interface ApplicationData {
   goal: GoalType;
   refundSchedule: RefundSchedule;
+  annuityOption: AnnuityOption;
   coverageAmount: string;
   dateOfBirth: string;
   payMonthlyForLife: boolean;
@@ -47,14 +53,26 @@ export interface ApplicationData {
   issueDate: string;
   expiryDate: string;
   beneficiaries: Beneficiary[];
+  hasMedicalCondition?: boolean;
+  medicalConditions?: string[];
+  otherCondition?: string;
+  height?: string;
+  weight?: string;
+  smokes?: boolean;
+  onMedication?: boolean;
+  medicationDetails?: string;
+  liveOutsideNigeria?: boolean;
 }
 
 export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [referenceNumber, setReferenceNumber] = useState('');
   const [data, setData] = useState<ApplicationData>({
     goal: null,
     refundSchedule: null,
+    annuityOption: null,
     coverageAmount: '',
     dateOfBirth: '',
     payMonthlyForLife: false,
@@ -73,11 +91,27 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
     beneficiaries: [],
   });
 
+  const handleComplete = (refNumber: string) => {
+    setReferenceNumber(refNumber);
+    setIsCompleted(true);
+  };
+
+  // If application is completed, show the ApplicationReceived screen
+  if (isCompleted) {
+    return (
+      <ApplicationReceived
+        referenceNumber={referenceNumber}
+        email={data.email}
+        onReturnHome={onClose}
+      />
+    );
+  }
+
   const getTotalSteps = () => {
-    if (data.goal === 'refundable') return 7;
-    if (data.goal === 'non-refundable') return 6;
-    if (data.goal === 'annuity') return 6;
-    return 6;
+    if (data.goal === 'refundable') return 9;
+    if (data.goal === 'non-refundable') return 8;
+    if (data.goal === 'annuity') return 9;
+    return 9;
   };
 
   const goToNextStep = () => {
@@ -183,6 +217,26 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
+      if (currentStep === 8) {
+        return (
+          <Step8HealthInformation
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 9) {
+        return (
+          <Step9ReviewSubmit
+            data={data}
+            onEdit={goToStep}
+            onBack={goToPreviousStep}
+            onComplete={handleComplete}
+          />
+        );
+      }
     }
 
     // Non-refundable premium flow
@@ -237,11 +291,41 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
+      if (currentStep === 7) {
+        return (
+          <Step8HealthInformation
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 8) {
+        return (
+          <Step9ReviewSubmit
+            data={data}
+            onEdit={goToStep}
+            onBack={goToPreviousStep}
+            onComplete={handleComplete}
+          />
+        );
+      }
     }
 
     // Annuity flow
     if (data.goal === 'annuity') {
       if (currentStep === 2) {
+        return (
+          <Step2CAnnuityOption
+            selectedOption={data.annuityOption}
+            onSelectOption={(option) => updateData({ annuityOption: option })}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 3) {
         return (
           <Step2CAnnuity
             data={data}
@@ -251,7 +335,7 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
-      if (currentStep === 3) {
+      if (currentStep === 4) {
         return (
           <Step4Summary
             data={data}
@@ -261,7 +345,7 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
-      if (currentStep === 4) {
+      if (currentStep === 5) {
         return (
           <Step5PersonalDetails
             data={data}
@@ -271,7 +355,7 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
-      if (currentStep === 5) {
+      if (currentStep === 6) {
         return (
           <Step6IdentityVerification
             data={data}
@@ -281,13 +365,33 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
           />
         );
       }
-      if (currentStep === 6) {
+      if (currentStep === 7) {
         return (
           <Step7Beneficiaries
             data={data}
             onUpdate={updateData}
             onContinue={goToNextStep}
             onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 8) {
+        return (
+          <Step8HealthInformation
+            data={data}
+            onUpdate={updateData}
+            onContinue={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      }
+      if (currentStep === 9) {
+        return (
+          <Step9ReviewSubmit
+            data={data}
+            onEdit={goToStep}
+            onBack={goToPreviousStep}
+            onComplete={handleComplete}
           />
         );
       }

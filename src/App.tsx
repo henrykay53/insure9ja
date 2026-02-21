@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
 import { ApplicationFlow } from './components/application/ApplicationFlow';
 import { Header } from './components/insure9ja/Header';
-import Home from './pages/Home';
-import About from './pages/About';
+import { Hero } from './components/insure9ja/Hero';
+import { SimpleSection } from './components/insure9ja/SimpleSection';
+import { OurPlans } from './components/insure9ja/OurPlans';
+import { HowItWorks } from './components/insure9ja/HowItWorks';
+import { TrustedSection } from './components/insure9ja/TrustedSection';
+import { ObjectionSection } from './components/insure9ja/ObjectionSection';
+import { FinalCTA } from './components/insure9ja/FinalCTA';
 import { Footer } from './components/insure9ja/Footer';
 
 export default function App() {
@@ -16,12 +20,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       <Header onStartApplication={() => setShowApplication(true)} />
-        <Routes>
-          <Route path='/' element={<Home />} />
-          <Route path='/about' element={<About />}/>
-
-        </Routes>
-      
+      <Hero onStartApplication={() => setShowApplication(true)} />
+      <SimpleSection />
+      <OurPlans onStartApplication={() => setShowApplication(true)} />
+      <HowItWorks />
+      <TrustedSection />
+      <ObjectionSection />
+      <FinalCTA onStartApplication={() => setShowApplication(true)} />
       <Footer />
     </div>
   );
