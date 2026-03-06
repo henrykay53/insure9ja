@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type  { ApplicationData } from './ApplicationFlow';
 import { FileCheck, Edit2 } from 'lucide-react';
+import { QuoteCaveat } from './QuoteCaveat';
+import { getAnnuityPayout, getNonRefundablePremium, getRefundablePremium } from '@/lib/quotation';
+import { submitApplication } from '@/lib/submission';
 
 interface Step9ReviewSubmitProps {
   data: ApplicationData;
@@ -13,42 +16,65 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [digitalSignature, setDigitalSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const hasValidSignature = digitalSignature.trim().length > 1;
 
   const handleSubmit = async () => {
-    if (!declarationChecked) return;
+    if (!declarationChecked || !hasValidSignature) return;
     
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    setIsSubmitting(false);
-    
-    // Here you would typically submit to your backend
-    console.log('Application submitted:', { ...data, digitalSignature });
-    
-    // Generate a reference number and call completion callback
-    const referenceNumber = `INS-${Date.now().toString().slice(-8)}`;
-    onComplete(referenceNumber);
+    setSubmitError(null);
+
+    try {
+      const result = await submitApplication({
+        data,
+        digitalSignature: digitalSignature.trim(),
+        quoteLabel: quote.label,
+        quoteAmount: quote.amount,
+      });
+      onComplete(result.referenceNumber);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'We could not submit your application. Please try again.';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Calculate estimated annual premium based on plan type
-  const getEstimatedPremium = () => {
-    const coverage = parseInt(data.coverageAmount.replace(/[^0-9]/g, '')) || 0;
-    
+  const getQuote = () => {
     if (data.goal === 'refundable') {
-      return Math.round(coverage * 0.05); // 5% of coverage
-    } else if (data.goal === 'non-refundable') {
-      return Math.round(coverage * 0.03); // 3% of coverage
-    } else if (data.goal === 'annuity') {
-      return Math.round(coverage * 0.04); // 4% of coverage
+      return {
+        label: 'Estimated annual premium',
+        amount: getRefundablePremium(data.coverageAmount, data.dateOfBirth, data.refundSchedule),
+      };
     }
-    return 0;
+    if (data.goal === 'non-refundable') {
+      return {
+        label: 'Estimated annual premium',
+        amount: getNonRefundablePremium(data.coverageAmount, data.dateOfBirth),
+      };
+    }
+    if (data.goal === 'annuity') {
+      const payout = getAnnuityPayout(data.coverageAmount, data.dateOfBirth, data.annuityOption);
+      return {
+        label: 'Estimated annual payout',
+        amount: payout.annual,
+      };
+    }
+    return {
+      label: 'Estimated annual premium',
+      amount: 0,
+    };
   };
 
   const formatCurrency = (amount: number) => {
     return `₦${amount.toLocaleString()}`;
   };
+
+  const quote = getQuote();
 
   const maskString = (str: string) => {
     if (!str || str.length < 4) return str;
@@ -78,7 +104,7 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-6 animate-scale-in-soft">
         <div className="flex items-start gap-3 mb-8">
           <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <FileCheck className="w-5 h-5 text-gray-700" />
@@ -99,7 +125,8 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             <h3 className="text-lg font-semibold text-gray-900">Plan Summary</h3>
             <button
               onClick={() => onEdit(getEditStep())}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors"
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -128,14 +155,12 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             </div>
             <div className="pt-3 border-t border-gray-200">
               <div className="flex justify-between items-start">
-                <span className="text-sm font-medium text-gray-700">Estimated Annual Premium</span>
+                <span className="text-sm font-medium text-gray-700">{quote.label}</span>
                 <span className="text-xl font-semibold text-gray-900">
-                  {formatCurrency(getEstimatedPremium())}
+                  {formatCurrency(quote.amount)}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Final premium will be calculated after underwriting
-              </p>
+              <QuoteCaveat />
             </div>
           </div>
         </div>
@@ -146,7 +171,8 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
             <button
               onClick={() => onEdit(data.goal === 'refundable' ? 5 : 4)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors"
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -180,7 +206,8 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             <h3 className="text-lg font-semibold text-gray-900">Identity Verification</h3>
             <button
               onClick={() => onEdit(data.goal === 'refundable' ? 6 : 5)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors"
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -220,7 +247,8 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             <h3 className="text-lg font-semibold text-gray-900">Beneficiaries</h3>
             <button
               onClick={() => onEdit(data.goal === 'refundable' ? 7 : 6)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors"
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -259,7 +287,8 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
             <h3 className="text-lg font-semibold text-gray-900">Health Summary</h3>
             <button
               onClick={() => onEdit(data.goal === 'refundable' ? 8 : 7)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors"
+              disabled={isSubmitting}
+              className="text-sm text-gray-600 hover:text-gray-900 disabled:text-gray-300 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
               Edit
@@ -308,6 +337,7 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
                 type="checkbox"
                 checked={declarationChecked}
                 onChange={(e) => setDeclarationChecked(e.target.checked)}
+                disabled={isSubmitting}
                 className="w-5 h-5 rounded border-gray-300 text-gray-900 focus:ring-gray-900 focus:ring-2 cursor-pointer mt-0.5 flex-shrink-0"
               />
               <span className="text-sm text-gray-700">
@@ -317,22 +347,37 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
           </div>
         </div>
 
-        {/* Digital Signature (Optional) */}
+        {/* Digital Signature */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Digital Signature <span className="text-gray-400">(optional)</span>
+            Digital Signature <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={digitalSignature}
             onChange={(e) => setDigitalSignature(e.target.value)}
             placeholder="Type your full name"
+            disabled={isSubmitting}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
           />
           <p className="text-xs text-gray-500 mt-2">
             By typing your name, you are providing a digital signature for this application.
           </p>
         </div>
+
+        {isSubmitting && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 animate-fade-up">
+            <p className="text-sm text-blue-800">
+              Submitting your application securely. Please keep this page open.
+            </p>
+          </div>
+        )}
+
+        {submitError && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 animate-fade-up">
+            <p className="text-sm text-red-700">{submitError}</p>
+          </div>
+        )}
       </div>
 
       {/* Navigation buttons */}
@@ -348,9 +393,9 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!declarationChecked || isSubmitting}
+          disabled={!declarationChecked || !hasValidSignature || isSubmitting}
           className={`px-8 py-3 rounded-xl transition-all flex items-center gap-2 ${
-            declarationChecked && !isSubmitting
+            declarationChecked && hasValidSignature && !isSubmitting
               ? 'bg-gray-900 text-white hover:bg-gray-800'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}

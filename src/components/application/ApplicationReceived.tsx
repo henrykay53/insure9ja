@@ -11,19 +11,19 @@ export function ApplicationReceived({ referenceNumber, email, onReturnHome }: Ap
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="max-w-2xl w-full">
         {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 sm:p-12 text-center animate-scale-in-soft">
           {/* Success Icon */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-fade-up">
             <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
           </div>
 
           {/* Headline */}
-          <h1 className="text-2xl sm:text-3xl text-gray-900 mb-3">
+          <h1 className="text-2xl sm:text-3xl text-gray-900 mb-3 animate-fade-up">
             Your application has been received
           </h1>
 
           {/* Subtext */}
-          <p className="text-gray-600 mb-8 max-w-lg mx-auto">
+          <p className="text-gray-600 mb-8 max-w-lg mx-auto animate-fade-up">
             Thank you for submitting your life insurance application. We will review your details and contact you shortly.
           </p>
 
@@ -71,7 +71,7 @@ export function ApplicationReceived({ referenceNumber, email, onReturnHome }: Ap
             <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="text-left">
               <p className="text-sm text-gray-700">
-                A confirmation email has been sent to{' '}
+                A confirmation email will be sent after final review to{' '}
                 <span className="font-medium text-gray-900">{email}</span>
               </p>
             </div>
@@ -88,7 +88,7 @@ export function ApplicationReceived({ referenceNumber, email, onReturnHome }: Ap
             </button>
             
             <a
-              href="mailto:support@insure9ja.com"
+              href="mailto:aedada@custodianinsurance.com"
               className="block w-full px-8 py-3 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
             >
               Contact support
@@ -100,7 +100,7 @@ export function ApplicationReceived({ referenceNumber, email, onReturnHome }: Ap
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
             Need help?{' '}
-            <a href="mailto:support@insure9ja.com" className="text-gray-700 hover:text-gray-900 underline">
+            <a href="mailto:aedada@custodianinsurance.com" className="text-gray-700 hover:text-gray-900 underline">
               Get in touch with our team
             </a>
           </p>

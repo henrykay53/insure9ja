@@ -88,7 +88,16 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
     issuingAuthority: '',
     issueDate: '',
     expiryDate: '',
-    beneficiaries: [],
+    beneficiaries: [
+      {
+        id: 'beneficiary-1',
+        fullName: '',
+        relationship: '',
+        dateOfBirth: '',
+        phoneNumber: '',
+        percentage: 0,
+      },
+    ],
   });
 
   const handleComplete = (refNumber: string) => {
@@ -426,7 +435,7 @@ export function ApplicationFlow({ onClose }: ApplicationFlowProps) {
         <div className="relative overflow-hidden">
           <div
             className={`transition-all duration-300 ease-in-out ${
-              direction === 'forward' ? 'animate-slide-in-right' : 'animate-slide-in-left'
+              direction === 'forward' ? 'animate-step-forward' : 'animate-step-backward'
             }`}
           >
             {renderStep()}
