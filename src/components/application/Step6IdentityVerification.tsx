@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { ApplicationData } from './ApplicationFlow';
 import { Shield, ChevronDown, ChevronUp } from 'lucide-react';
+import { DateDropdownInput } from './DateDropdownInput';
+import { getTodayIsoDate } from './dateRules';
 
 interface Step6IdentityVerificationProps {
   data: ApplicationData;
@@ -12,6 +14,7 @@ interface Step6IdentityVerificationProps {
 export function Step6IdentityVerification({ data, onUpdate, onContinue, onBack }: Step6IdentityVerificationProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showOptionalId, setShowOptionalId] = useState(false);
+  const today = getTodayIsoDate();
 
   const validateBVN = (bvn: string) => {
     const cleaned = bvn.replace(/\s/g, '');
@@ -208,26 +211,24 @@ export function Step6IdentityVerification({ data, onUpdate, onContinue, onBack }
                     <label htmlFor="issueDate" className="block text-sm font-medium text-gray-700 mb-2">
                       Issue date
                     </label>
-                    <input
-                      type="date"
-                      id="issueDate"
+                    <DateDropdownInput
+                      idPrefix="issueDate"
                       value={data.issueDate || ''}
-                      onChange={(e) => onUpdate({ issueDate: e.target.value })}
-                      max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+                      onChange={(value) => onUpdate({ issueDate: value })}
+                      min="1920-01-01"
+                      max={today}
                     />
                   </div>
                   <div>
                     <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">
                       Expiry date
                     </label>
-                    <input
-                      type="date"
-                      id="expiryDate"
+                    <DateDropdownInput
+                      idPrefix="expiryDate"
                       value={data.expiryDate || ''}
-                      onChange={(e) => onUpdate({ expiryDate: e.target.value })}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+                      onChange={(value) => onUpdate({ expiryDate: value })}
+                      min={today}
+                      max="2100-12-31"
                     />
                   </div>
                 </div>

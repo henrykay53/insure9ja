@@ -1,6 +1,8 @@
-
+import { useRef } from 'react';
 import type { ApplicationData, Beneficiary } from './ApplicationFlow';
 import { Trash2, Plus, Users } from 'lucide-react';
+import { DateDropdownInput } from './DateDropdownInput';
+import { getTodayIsoDate } from './dateRules';
 
 interface Step7BeneficiariesProps {
   data: ApplicationData;
@@ -11,16 +13,19 @@ interface Step7BeneficiariesProps {
 
 export function Step7Beneficiaries({ data, onUpdate, onContinue, onBack }: Step7BeneficiariesProps) {
   const beneficiaries = data.beneficiaries || [];
+  const nextBeneficiaryIdRef = useRef(beneficiaries.length + 1);
+  const maxDate = getTodayIsoDate();
 
   const addBeneficiary = () => {
     const newBeneficiary: Beneficiary = {
-      id: Date.now().toString(),
+      id: `beneficiary-${nextBeneficiaryIdRef.current}`,
       fullName: '',
       relationship: '',
       dateOfBirth: '',
       phoneNumber: '',
       percentage: 0,
     };
+    nextBeneficiaryIdRef.current += 1;
     onUpdate({ beneficiaries: [...beneficiaries, newBeneficiary] });
   };
 
@@ -47,11 +52,6 @@ export function Step7Beneficiaries({ data, onUpdate, onContinue, onBack }: Step7
   );
 
   const isValid = isValidTotal && hasMinimumInfo;
-
-  // Initialize with one beneficiary if none exist
-  if (beneficiaries.length === 0) {
-    addBeneficiary();
-  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -159,15 +159,12 @@ export function Step7Beneficiaries({ data, onUpdate, onContinue, onBack }: Step7
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date of birth
                   </label>
-                  <input
-                    type="date"
+                  <DateDropdownInput
+                    idPrefix={`${beneficiary.id}-dob`}
                     value={beneficiary.dateOfBirth}
-                    onChange={(e) =>
-                      updateBeneficiary(beneficiary.id, { dateOfBirth: e.target.value })
-                    }
-                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(value) => updateBeneficiary(beneficiary.id, { dateOfBirth: value })}
+                    max={maxDate}
                     min="1920-01-01"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
                   />
                 </div>
 

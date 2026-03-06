@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ApplicationData } from './ApplicationFlow';
-import { Calendar } from 'lucide-react';
+import { DateDropdownInput } from './DateDropdownInput';
+import { getTodayIsoDate } from './dateRules';
 
 interface Step5PersonalDetailsProps {
   data: ApplicationData;
@@ -11,6 +12,7 @@ interface Step5PersonalDetailsProps {
 
 export function Step5PersonalDetails({ data, onUpdate, onContinue, onBack }: Step5PersonalDetailsProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const today = getTodayIsoDate();
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -164,21 +166,13 @@ export function Step5PersonalDetails({ data, onUpdate, onContinue, onBack }: Ste
             <label htmlFor="personalDOB" className="block text-sm font-medium text-gray-700 mb-2">
               Date of birth
             </label>
-            <div className="relative">
-              <input
-                type="date"
-                id="personalDOB"
-                value={data.personalDOB || ''}
-                onChange={(e) => onUpdate({ personalDOB: e.target.value })}
-                max={new Date().toISOString().split('T')[0]}
-                min="1920-01-01"
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors appearance-none"
-                style={{
-                  colorScheme: 'light',
-                }}
-              />
-              <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-            </div>
+            <DateDropdownInput
+              idPrefix="personalDOB"
+              value={data.personalDOB || ''}
+              onChange={(value) => onUpdate({ personalDOB: value })}
+              min="1920-01-01"
+              max={today}
+            />
             <p className="text-sm text-gray-500 mt-2">
               Used to calculate your premium accurately.
             </p>
