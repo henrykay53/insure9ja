@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { ApplicationFlow } from './components/application/ApplicationFlow';
 import { Header } from './components/insure9ja/Header';
-import { Hero } from './components/insure9ja/Hero';
-import { SimpleSection } from './components/insure9ja/SimpleSection';
-import { OurPlans } from './components/insure9ja/OurPlans';
-import { HowItWorks } from './components/insure9ja/HowItWorks';
-import { TrustedSection } from './components/insure9ja/TrustedSection';
-import { ObjectionSection } from './components/insure9ja/ObjectionSection';
-import { FinalCTA } from './components/insure9ja/FinalCTA';
 import { Footer } from './components/insure9ja/Footer';
+import Home from './pages/Home';
+import Product from './pages/Product';
+import Annuity from './pages/Annuity';
+import About from './pages/About';
+import Faqs from './pages/Faqs';
+import Contact from './pages/Contact';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 export default function App() {
   const [showApplication, setShowApplication] = useState(false);
@@ -20,13 +22,20 @@ export default function App() {
   return (
     <div className="min-h-screen bg-white">
       <Header onStartApplication={() => setShowApplication(true)} />
-      <Hero onStartApplication={() => setShowApplication(true)} />
-      <SimpleSection />
-      <OurPlans onStartApplication={() => setShowApplication(true)} />
-      <HowItWorks />
-      <TrustedSection />
-      <ObjectionSection />
-      <FinalCTA onStartApplication={() => setShowApplication(true)} />
+      <Routes>
+        <Route path="/" element={<Home onStartApplication={() => setShowApplication(true)} />} />
+        <Route
+          path="/life-insurance"
+          element={<Product onStartApplication={() => setShowApplication(true)} />}
+        />
+        <Route path="/annuity" element={<Annuity onStartApplication={() => setShowApplication(true)} />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/faqs" element={<Faqs />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Footer />
     </div>
   );

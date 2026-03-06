@@ -1,4 +1,5 @@
 import { ArrowRight, Award } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function TrustedSection() {
   return (
@@ -19,13 +20,13 @@ export function TrustedSection() {
               </p>
             </div>
           </div>
-          <a
-            href="#about"
+          <Link
+            to="/about"
             className="inline-flex items-center gap-2 text-gray-900 font-medium hover:gap-3 transition-all"
           >
             Learn more about us
             <ArrowRight className="w-4 h-4" />
-          </a>
+          </Link>
         </div>
       </div>
     </section>

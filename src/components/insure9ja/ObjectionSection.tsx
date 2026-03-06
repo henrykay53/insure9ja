@@ -1,4 +1,5 @@
 import { HelpCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function ObjectionSection() {
   return (
@@ -14,12 +15,12 @@ export function ObjectionSection() {
           <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
             Many people worry about cost, timing, or whether they really need it. We've answered the most common questions to help you decide with confidence.
           </p>
-          <a
-            href="#faqs"
+          <Link
+            to="/faqs"
             className="inline-block bg-white text-gray-900 px-8 py-3 rounded-xl hover:bg-gray-50 transition-colors border-2 border-gray-200"
           >
             See common questions
-          </a>
+          </Link>
         </div>
       </div>
     </section>
