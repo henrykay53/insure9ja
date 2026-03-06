@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
 import type { ApplicationData } from './ApplicationFlow';
+import { DateDropdownInput } from './DateDropdownInput';
+import { getTodayIsoDate, isDobOnOrBeforeToday } from './dateRules';
+import { QuoteCaveat } from './QuoteCaveat';
+import { getAnnuityPayout } from '@/lib/quotation';
 
 interface Step2CAnnuityProps {
   data: ApplicationData;
@@ -9,19 +12,11 @@ interface Step2CAnnuityProps {
 }
 
 export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnuityProps) {
-  const [estimatedIncome, setEstimatedIncome] = useState(0);
+  const today = getTodayIsoDate();
 
-  useEffect(() => {
-    // Calculate estimated monthly income based on contribution
-    const amount = parseFloat(data.coverageAmount.replace(/,/g, '')) || 0;
-    if (amount > 0) {
-      // Rough estimate: monthly income based on annual contribution
-      const monthlyIncome = Math.round((amount * 0.08) / 12 / 1000) * 1000;
-      setEstimatedIncome(monthlyIncome);
-    } else {
-      setEstimatedIncome(0);
-    }
-  }, [data.coverageAmount, data.dateOfBirth]);
+  // Calculate estimated monthly income based on contribution
+  const payout = getAnnuityPayout(data.coverageAmount, data.dateOfBirth, data.annuityOption);
+  const estimatedIncome = payout.monthly;
 
   const formatCurrency = (value: string) => {
     const number = value.replace(/\D/g, '');
@@ -33,7 +28,8 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
     onUpdate({ coverageAmount: formatted });
   };
 
-  const isValid = data.coverageAmount && data.dateOfBirth;
+  const hasValidDob = isDobOnOrBeforeToday(data.dateOfBirth);
+  const isValid = Boolean(data.coverageAmount && data.dateOfBirth && hasValidDob);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -66,13 +62,18 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
             <label htmlFor="dob" className="block text-sm font-medium text-gray-700 mb-2">
               Date of birth
             </label>
-            <input
-              type="date"
-              id="dob"
+            <DateDropdownInput
+              idPrefix="dob"
               value={data.dateOfBirth}
-              onChange={(e) => onUpdate({ dateOfBirth: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-gray-900 focus:outline-none text-lg"
+              min="1920-01-01"
+              max={today}
+              onChange={(value) => onUpdate({ dateOfBirth: value })}
             />
+            {data.dateOfBirth && !hasValidDob && (
+              <p className="text-sm text-red-600 mt-2">
+                Date of birth cannot be in the future.
+              </p>
+            )}
           </div>
         </div>
 
@@ -89,6 +90,7 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
               </div>
             </div>
           </div>
+          <QuoteCaveat />
         </div>
       </div>
 

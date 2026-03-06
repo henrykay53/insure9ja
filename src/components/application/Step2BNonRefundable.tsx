@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
 import type { ApplicationData } from './ApplicationFlow';
+import { DateDropdownInput } from './DateDropdownInput';
+import { getProtectionMinDobIso, getTodayIsoDate, isProtectionDobValid } from './dateRules';
+import { QuoteCaveat } from './QuoteCaveat';
+import { getNonRefundablePremium } from '@/lib/quotation';
 
 interface Step2BNonRefundableProps {
   data: ApplicationData;
@@ -9,19 +12,11 @@ interface Step2BNonRefundableProps {
 }
 
 export function Step2BNonRefundable({ data, onUpdate, onContinue, onBack }: Step2BNonRefundableProps) {
-  const [estimatedPremium, setEstimatedPremium] = useState(0);
+  const protectionMinDob = getProtectionMinDobIso();
+  const today = getTodayIsoDate();
 
-  useEffect(() => {
-    // Calculate estimated premium - lower for non-refundable
-    const amount = parseFloat(data.coverageAmount.replace(/,/g, '')) || 0;
-    if (amount > 0) {
-      // Lower premium: ~2-3% of coverage amount annually
-      const premium = Math.round((amount * 0.025) / 1000) * 1000;
-      setEstimatedPremium(premium);
-    } else {
-      setEstimatedPremium(0);
-    }
-  }, [data.coverageAmount, data.dateOfBirth]);
+  // Calculate estimated premium - lower for non-refundable
+  const estimatedPremium = getNonRefundablePremium(data.coverageAmount, data.dateOfBirth);
 
   const formatCurrency = (value: string) => {
     const number = value.replace(/\D/g, '');
@@ -33,7 +28,8 @@ export function Step2BNonRefundable({ data, onUpdate, onContinue, onBack }: Step
     onUpdate({ coverageAmount: formatted });
   };
 
-  const isValid = data.coverageAmount && data.dateOfBirth;
+  const hasValidAge = isProtectionDobValid(data.dateOfBirth);
+  const isValid = Boolean(data.coverageAmount && data.dateOfBirth && hasValidAge);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -66,13 +62,18 @@ export function Step2BNonRefundable({ data, onUpdate, onContinue, onBack }: Step
             <label htmlFor="dob" className="block text-sm font-medium text-gray-700 mb-2">
               Date of birth
             </label>
-            <input
-              type="date"
-              id="dob"
+            <DateDropdownInput
+              idPrefix="dob"
               value={data.dateOfBirth}
-              onChange={(e) => onUpdate({ dateOfBirth: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-gray-900 focus:outline-none text-lg"
+              min={protectionMinDob}
+              max={today}
+              onChange={(value) => onUpdate({ dateOfBirth: value })}
             />
+            {data.dateOfBirth && !hasValidAge && (
+              <p className="text-sm text-red-600 mt-2">
+                Entry age for this protection plan is up to 60 years.
+              </p>
+            )}
           </div>
         </div>
 
@@ -89,6 +90,7 @@ export function Step2BNonRefundable({ data, onUpdate, onContinue, onBack }: Step
               </div>
             </div>
           </div>
+          <QuoteCaveat />
         </div>
       </div>
 

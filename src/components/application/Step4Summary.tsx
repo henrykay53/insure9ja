@@ -1,5 +1,7 @@
 import { Edit2, Shield, TrendingUp, Calendar, User } from 'lucide-react';
 import type { ApplicationData } from './ApplicationFlow';
+import { QuoteCaveat } from './QuoteCaveat';
+import { getAnnuityPayout, getNonRefundablePremium, getRefundablePremium } from '@/lib/quotation';
 
 interface Step4SummaryProps {
   data: ApplicationData;
@@ -9,22 +11,30 @@ interface Step4SummaryProps {
 }
 
 export function Step4Summary({ data, onEdit, onContinue, onBack }: Step4SummaryProps) {
-  // Calculate estimated premium based on data
-  const calculatePremium = () => {
-    const amount = parseFloat(data.coverageAmount.replace(/,/g, '')) || 0;
-    
+  const getQuote = () => {
     if (data.goal === 'non-refundable') {
-      return Math.round((amount * 0.025) / 1000) * 1000;
-    } else if (data.goal === 'refundable') {
-      if (data.refundSchedule === '5-years') {
-        return Math.round((amount * 0.04) / 1000) * 1000;
-      } else {
-        return Math.round((amount * 0.045) / 1000) * 1000;
-      }
-    } else if (data.goal === 'annuity') {
-      return parseFloat(data.coverageAmount.replace(/,/g, '')) || 0;
+      return {
+        label: 'Estimated annual premium',
+        amount: getNonRefundablePremium(data.coverageAmount, data.dateOfBirth),
+      };
     }
-    return 0;
+    if (data.goal === 'refundable') {
+      return {
+        label: 'Estimated annual premium',
+        amount: getRefundablePremium(data.coverageAmount, data.dateOfBirth, data.refundSchedule),
+      };
+    }
+    if (data.goal === 'annuity') {
+      const payout = getAnnuityPayout(data.coverageAmount, data.dateOfBirth, data.annuityOption);
+      return {
+        label: 'Estimated annual payout',
+        amount: payout.annual,
+      };
+    }
+    return {
+      label: 'Estimated annual premium',
+      amount: 0,
+    };
   };
 
   // Calculate age from date of birth
@@ -79,7 +89,7 @@ export function Step4Summary({ data, onEdit, onContinue, onBack }: Step4SummaryP
     return '20 years'; // Default duration
   };
 
-  const estimatedPremium = calculatePremium();
+  const quote = getQuote();
   const age = calculateAge();
 
   const summaryItems = [
@@ -164,15 +174,14 @@ export function Step4Summary({ data, onEdit, onContinue, onBack }: Step4SummaryP
             Premium
           </h3>
           <div className="bg-gradient-to-br from-green-50 to-green-50/50 rounded-xl p-6 border border-green-100">
-            <div className="text-sm text-gray-600 mb-2">
-              Estimated annual premium
-            </div>
+            <div className="text-sm text-gray-600 mb-2">{quote.label}</div>
             <div className="text-4xl sm:text-5xl font-semibold text-gray-900 mb-3">
-              ₦{estimatedPremium.toLocaleString()}
+              ₦{quote.amount.toLocaleString()}
             </div>
             <p className="text-sm text-gray-600">
               This estimate is based on the information you provided.
             </p>
+            <QuoteCaveat />
           </div>
         </div>
 
