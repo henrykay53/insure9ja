@@ -1,0 +1,3 @@
+[functions]
+  included_files = ["assets/forms/*.pdf"]
+
