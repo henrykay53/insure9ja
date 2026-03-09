@@ -8,6 +8,27 @@ const TEMPLATE_PATHS = {
   annuity: path.resolve(process.cwd(), 'assets/forms/annuity-proposal-form.pdf'),
 };
 
+const TRADITIONAL_FORM_VERSION = 'traditional-dec-2025-v1';
+const ANNUITY_FORM_VERSION = 'annuity-dec-2026-v1';
+const PDF_PREFILL_ENABLED = process.env.ENABLE_PDF_PREFILL === 'true';
+
+const ensureTemplateExists = async (templatePath) => {
+  try {
+    await fs.access(templatePath);
+  } catch {
+    const error = new Error(`Template file not found: ${templatePath}`);
+    error.code = 'TEMPLATE_NOT_FOUND';
+    throw error;
+  }
+};
+
+const normalizeError = (error) => {
+  if (!error) return { code: 'UNKNOWN', message: 'Unknown error' };
+  const code = error.code || error.name || 'UNKNOWN';
+  const message = error.message || String(error);
+  return { code: String(code), message: String(message) };
+};
+
 const formatDate = (value) => {
   if (!value) return '';
   const [year, month, day] = value.split('-');
@@ -18,6 +39,10 @@ const formatDate = (value) => {
 const cleanPhone = (value) => {
   if (!value) return '';
   return `+234${String(value).replace(/\\D/g, '')}`;
+};
+
+const formatCurrencyForPdf = (amount) => {
+  return `NGN ${Number(amount || 0).toLocaleString()}`;
 };
 
 const generateReference = () => {
@@ -43,26 +68,100 @@ const setTextFieldSafe = (form, fieldName, value) => {
   }
 };
 
+const getTraditionalFieldMap = (data) => [
+  { field: 'CD_Surname', value: data.lastName, required: true, source: 'lastName' },
+  { field: 'CD_FirstName', value: data.firstName, required: true, source: 'firstName' },
+  { field: 'CD_MiddleName', value: '', required: false, source: 'middleName' },
+  {
+    field: 'CD_D.O.B',
+    value: formatDate(data.personalDOB || data.dateOfBirth),
+    required: true,
+    source: 'personalDOB/dateOfBirth',
+  },
+  { field: 'CD_EmailAddress', value: data.email, required: true, source: 'email' },
+  { field: 'CD_Telephone', value: cleanPhone(data.phoneNumber), required: true, source: 'phoneNumber' },
+  { field: 'CD_Nationality', value: 'Nigerian', required: false, source: 'constant' },
+  // First-page BVN/NIN fields in this template revision.
+  { field: 'Text Field 87', value: data.bvn || '', required: false, source: 'bvn' },
+  { field: 'Text Field 92', value: data.nin || '', required: false, source: 'nin' },
+];
+
+const getAnnuityFieldMap = (data, referenceNumber, quoteLabel, quoteAmount, digitalSignature) => [
+  { field: 'Text Field 97', value: `Ref: ${referenceNumber}`, required: false, source: 'reference' },
+  {
+    field: 'Text Field 96',
+    value: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+    required: true,
+    source: 'firstName/lastName',
+  },
+  { field: 'Text Field 95', value: data.email, required: true, source: 'email' },
+  { field: 'Text Field 94', value: cleanPhone(data.phoneNumber), required: true, source: 'phoneNumber' },
+  {
+    field: 'Text Field 90',
+    value: `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`,
+    required: false,
+    source: 'quote',
+  },
+  { field: 'Text Field 89', value: data.coverageAmount || '', required: false, source: 'coverageAmount' },
+  {
+    field: 'Text Field 88',
+    value: formatDate(data.personalDOB || data.dateOfBirth),
+    required: false,
+    source: 'personalDOB/dateOfBirth',
+  },
+  { field: 'Text Field 87', value: data.annuityOption || '', required: false, source: 'annuityOption' },
+  { field: 'Text Field 86', value: digitalSignature, required: false, source: 'digitalSignature' },
+];
+
+const applyMappedFields = (form, mappings, templateVersion) => {
+  const availableFields = new Set(form.getFields().map((f) => f.getName()));
+  const missingMappedFields = [];
+  const emptyRequiredValues = [];
+
+  for (const mapping of mappings) {
+    const hasField = availableFields.has(mapping.field);
+    if (!hasField) {
+      if (mapping.required) {
+        missingMappedFields.push(mapping.field);
+      }
+      continue;
+    }
+
+    const normalizedValue = String(mapping.value ?? '').trim();
+    if (!normalizedValue) {
+      if (mapping.required) {
+        emptyRequiredValues.push(`${mapping.source}->${mapping.field}`);
+      }
+      continue;
+    }
+
+    setTextFieldSafe(form, mapping.field, normalizedValue);
+  }
+
+  if (missingMappedFields.length > 0) {
+    const error = new Error(
+      `Required mapped fields missing in template ${templateVersion}: ${missingMappedFields.join(', ')}`,
+    );
+    error.code = 'PDF_MAPPING_FIELDS_MISSING';
+    throw error;
+  }
+
+  if (emptyRequiredValues.length > 0) {
+    const error = new Error(
+      `Required values missing for template ${templateVersion}: ${emptyRequiredValues.join(', ')}`,
+    );
+    error.code = 'PDF_MAPPING_VALUES_MISSING';
+    throw error;
+  }
+};
+
 const fillTraditionalForm = async (bytes, payload, referenceNumber) => {
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
-  const { data, digitalSignature, quoteLabel, quoteAmount } = payload;
+  const { data } = payload;
+  void referenceNumber;
 
-  setTextFieldSafe(form, 'CD_Surname', data.lastName);
-  setTextFieldSafe(form, 'CD_FirstName', data.firstName);
-  setTextFieldSafe(form, 'CD_MiddleName', '');
-  setTextFieldSafe(form, 'CD_D.O.B', formatDate(data.personalDOB || data.dateOfBirth));
-  setTextFieldSafe(form, 'CD_EmailAddress', data.email);
-  setTextFieldSafe(form, 'CD_Telephone', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'CD_Telephone 1', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'CD_Nationality', 'Nigerian');
-  setTextFieldSafe(form, 'CD_ResidentialAddress', 'Provided in online application');
-  setTextFieldSafe(form, 'CD_Contact address', 'Provided in online application');
-  setTextFieldSafe(form, 'CD_TIN', data.bvn || data.nin || '');
-  setTextFieldSafe(form, 'Text Field 97', `Ref: ${referenceNumber}`);
-  setTextFieldSafe(form, 'Text Field 96', `${quoteLabel}: ₦${Number(quoteAmount || 0).toLocaleString()}`);
-  setTextFieldSafe(form, 'Text Field 95', data.goal || '');
-  setTextFieldSafe(form, 'Text Field 94', digitalSignature);
+  applyMappedFields(form, getTraditionalFieldMap(data), TRADITIONAL_FORM_VERSION);
 
   form.flatten();
   return await pdf.save();
@@ -72,20 +171,31 @@ const fillAnnuityForm = async (bytes, payload, referenceNumber) => {
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
   const { data, digitalSignature, quoteLabel, quoteAmount } = payload;
-
-  // The annuity template uses generic field names; we populate core summary fields conservatively.
-  setTextFieldSafe(form, 'Text Field 97', `Ref: ${referenceNumber}`);
-  setTextFieldSafe(form, 'Text Field 96', `${data.firstName || ''} ${data.lastName || ''}`.trim());
-  setTextFieldSafe(form, 'Text Field 95', data.email);
-  setTextFieldSafe(form, 'Text Field 94', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'Text Field 90', `${quoteLabel}: ₦${Number(quoteAmount || 0).toLocaleString()}`);
-  setTextFieldSafe(form, 'Text Field 89', data.coverageAmount || '');
-  setTextFieldSafe(form, 'Text Field 88', formatDate(data.personalDOB || data.dateOfBirth));
-  setTextFieldSafe(form, 'Text Field 87', data.annuityOption || '');
-  setTextFieldSafe(form, 'Text Field 86', digitalSignature);
+  applyMappedFields(
+    form,
+    getAnnuityFieldMap(data, referenceNumber, quoteLabel, quoteAmount, digitalSignature),
+    ANNUITY_FORM_VERSION,
+  );
 
   form.flatten();
   return await pdf.save();
+};
+
+const buildFormAttachment = async ({
+  templateBytes,
+  isAnnuity,
+  payload,
+  referenceNumber,
+  prefillEnabled,
+}) => {
+  if (!prefillEnabled) {
+    // Keep client template untouched until a confirmed field map is available.
+    return templateBytes;
+  }
+
+  return isAnnuity
+    ? await fillAnnuityForm(templateBytes, payload, referenceNumber)
+    : await fillTraditionalForm(templateBytes, payload, referenceNumber);
 };
 
 const buildSummaryPdf = async (payload, referenceNumber) => {
@@ -122,7 +232,7 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   line('Refund Schedule', data.refundSchedule || '');
   line('Annuity Option', data.annuityOption || '');
   line('Coverage/Contribution', data.coverageAmount || '');
-  line(quoteLabel, `₦${Number(quoteAmount || 0).toLocaleString()}`);
+  line(quoteLabel, formatCurrencyForPdf(quoteAmount));
   y -= 6;
   line('Identity', '', true);
   line('BVN', data.bvn || '');
@@ -142,7 +252,7 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   return await pdf.save();
 };
 
-const buildHtmlSummary = (payload, referenceNumber) => {
+const buildHtmlSummary = (payload, referenceNumber, prefillEnabled) => {
   const { data, quoteLabel, quoteAmount } = payload;
   const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
   return `
@@ -157,7 +267,11 @@ const buildHtmlSummary = (payload, referenceNumber) => {
       <p><strong>Coverage/Contribution:</strong> ${data.coverageAmount || 'N/A'}</p>
       <p><strong>DOB:</strong> ${formatDate(data.personalDOB || data.dateOfBirth) || 'N/A'}</p>
       <hr />
-      <p>This email includes attached prefilled proposal form and an application summary PDF.</p>
+      <p>${
+        prefillEnabled
+          ? 'This email includes attached prefilled proposal form and an application summary PDF.'
+          : 'This email includes the official blank proposal form and a fully filled application summary PDF for internal completion.'
+      }</p>
     </div>
   `;
 };
@@ -207,34 +321,53 @@ exports.handler = async (event) => {
   try {
     const isAnnuity = data.goal === 'annuity';
     const templatePath = isAnnuity ? TEMPLATE_PATHS.annuity : TEMPLATE_PATHS.traditional;
+    await ensureTemplateExists(templatePath);
     const templateBytes = await fs.readFile(templatePath);
 
-    const formPdfBytes = isAnnuity
-      ? await fillAnnuityForm(templateBytes, payload, referenceNumber)
-      : await fillTraditionalForm(templateBytes, payload, referenceNumber);
+    const formPdfBytes = await buildFormAttachment({
+      templateBytes,
+      isAnnuity,
+      payload,
+      referenceNumber,
+      prefillEnabled: PDF_PREFILL_ENABLED,
+    });
 
     const summaryPdfBytes = await buildSummaryPdf(payload, referenceNumber);
     const resend = new Resend(apiKey);
 
-    await resend.emails.send({
+    const sendResult = await resend.emails.send({
       from: fromEmail,
       to: [toEmail],
       replyTo: data.email || undefined,
       subject: `New Application ${referenceNumber} - ${data.goal}`,
-      html: buildHtmlSummary({ data, quoteLabel, quoteAmount }, referenceNumber),
+      html: buildHtmlSummary(
+        { data, quoteLabel, quoteAmount },
+        referenceNumber,
+        PDF_PREFILL_ENABLED,
+      ),
       attachments: [
         {
           filename: isAnnuity
             ? `annuity-proposal-${referenceNumber}.pdf`
             : `traditional-proposal-${referenceNumber}.pdf`,
-          content: Buffer.from(formPdfBytes),
+          content: Buffer.from(formPdfBytes).toString('base64'),
+          contentType: 'application/pdf',
         },
         {
           filename: `application-summary-${referenceNumber}.pdf`,
-          content: Buffer.from(summaryPdfBytes),
+          content: Buffer.from(summaryPdfBytes).toString('base64'),
+          contentType: 'application/pdf',
         },
       ],
     });
+
+    if (sendResult?.error) {
+      const resendError = new Error(
+        sendResult.error.message || 'Resend rejected the email request.',
+      );
+      resendError.code = 'RESEND_SEND_FAILED';
+      throw resendError;
+    }
 
     return {
       statusCode: 200,
@@ -242,10 +375,48 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('submit-application failed', error);
+    const normalized = normalizeError(error);
+
+    if (normalized.code === 'TEMPLATE_NOT_FOUND' || normalized.code === 'ENOENT') {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error:
+            'Submission failed because form templates are missing on the server deployment.',
+        }),
+      };
+    }
+
+    if (
+      normalized.code === 'PDF_MAPPING_FIELDS_MISSING' ||
+      normalized.code === 'PDF_MAPPING_VALUES_MISSING'
+    ) {
+      return {
+        statusCode: 422,
+        body: JSON.stringify({
+          error: `PDF mapping validation failed: ${normalized.message}`,
+        }),
+      };
+    }
+
+    if (
+      normalized.code === 'RESEND_SEND_FAILED' ||
+      normalized.code === 'validation_error' ||
+      normalized.code === 'unknown_error' ||
+      normalized.code.toLowerCase().includes('resend')
+    ) {
+      return {
+        statusCode: 502,
+        body: JSON.stringify({
+          error: `Email submission failed at the mail provider: ${normalized.message}`,
+        }),
+      };
+    }
+
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: 'Application submission failed. Please try again.',
+        error: `Application submission failed (${normalized.code}): ${normalized.message}`,
       }),
     };
   }
