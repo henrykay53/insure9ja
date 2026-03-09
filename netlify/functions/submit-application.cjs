@@ -80,9 +80,9 @@ const getTraditionalFieldMap = (data) => [
   { field: 'CD_EmailAddress', value: data.email, required: true, source: 'email' },
   { field: 'CD_Telephone', value: cleanPhone(data.phoneNumber), required: true, source: 'phoneNumber' },
   { field: 'CD_Nationality', value: 'Nigerian', required: false, source: 'constant' },
-  // In this template revision these generic fields correspond to BVN/NIN visually.
-  { field: 'Text Field 100', value: data.bvn || '', required: false, source: 'bvn' },
-  { field: 'Text Field 86', value: data.nin || '', required: false, source: 'nin' },
+  // First-page BVN/NIN fields in this template revision.
+  { field: 'Text Field 87', value: data.bvn || '', required: false, source: 'bvn' },
+  { field: 'Text Field 92', value: data.nin || '', required: false, source: 'nin' },
 ];
 
 const getAnnuityFieldMap = (data, referenceNumber, quoteLabel, quoteAmount, digitalSignature) => [
