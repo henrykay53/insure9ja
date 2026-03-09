@@ -37,6 +37,10 @@ const cleanPhone = (value) => {
   return `+234${String(value).replace(/\\D/g, '')}`;
 };
 
+const formatCurrencyForPdf = (amount) => {
+  return `NGN ${Number(amount || 0).toLocaleString()}`;
+};
+
 const generateReference = () => {
   const now = new Date();
   const parts = [
@@ -77,7 +81,7 @@ const fillTraditionalForm = async (bytes, payload, referenceNumber) => {
   setTextFieldSafe(form, 'CD_Contact address', 'Provided in online application');
   setTextFieldSafe(form, 'CD_TIN', data.bvn || data.nin || '');
   setTextFieldSafe(form, 'Text Field 97', `Ref: ${referenceNumber}`);
-  setTextFieldSafe(form, 'Text Field 96', `${quoteLabel}: ₦${Number(quoteAmount || 0).toLocaleString()}`);
+  setTextFieldSafe(form, 'Text Field 96', `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`);
   setTextFieldSafe(form, 'Text Field 95', data.goal || '');
   setTextFieldSafe(form, 'Text Field 94', digitalSignature);
 
@@ -95,7 +99,7 @@ const fillAnnuityForm = async (bytes, payload, referenceNumber) => {
   setTextFieldSafe(form, 'Text Field 96', `${data.firstName || ''} ${data.lastName || ''}`.trim());
   setTextFieldSafe(form, 'Text Field 95', data.email);
   setTextFieldSafe(form, 'Text Field 94', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'Text Field 90', `${quoteLabel}: ₦${Number(quoteAmount || 0).toLocaleString()}`);
+  setTextFieldSafe(form, 'Text Field 90', `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`);
   setTextFieldSafe(form, 'Text Field 89', data.coverageAmount || '');
   setTextFieldSafe(form, 'Text Field 88', formatDate(data.personalDOB || data.dateOfBirth));
   setTextFieldSafe(form, 'Text Field 87', data.annuityOption || '');
@@ -139,7 +143,7 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   line('Refund Schedule', data.refundSchedule || '');
   line('Annuity Option', data.annuityOption || '');
   line('Coverage/Contribution', data.coverageAmount || '');
-  line(quoteLabel, `₦${Number(quoteAmount || 0).toLocaleString()}`);
+  line(quoteLabel, formatCurrencyForPdf(quoteAmount));
   y -= 6;
   line('Identity', '', true);
   line('BVN', data.bvn || '');
