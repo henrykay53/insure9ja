@@ -67,7 +67,7 @@ const setTextFieldSafe = (form, fieldName, value) => {
 const fillTraditionalForm = async (bytes, payload, referenceNumber) => {
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
-  const { data, digitalSignature, quoteLabel, quoteAmount } = payload;
+  const { data } = payload;
 
   setTextFieldSafe(form, 'CD_Surname', data.lastName);
   setTextFieldSafe(form, 'CD_FirstName', data.firstName);
@@ -75,15 +75,10 @@ const fillTraditionalForm = async (bytes, payload, referenceNumber) => {
   setTextFieldSafe(form, 'CD_D.O.B', formatDate(data.personalDOB || data.dateOfBirth));
   setTextFieldSafe(form, 'CD_EmailAddress', data.email);
   setTextFieldSafe(form, 'CD_Telephone', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'CD_Telephone 1', cleanPhone(data.phoneNumber));
   setTextFieldSafe(form, 'CD_Nationality', 'Nigerian');
-  setTextFieldSafe(form, 'CD_ResidentialAddress', 'Provided in online application');
-  setTextFieldSafe(form, 'CD_Contact address', 'Provided in online application');
-  setTextFieldSafe(form, 'CD_TIN', data.bvn || data.nin || '');
-  setTextFieldSafe(form, 'Text Field 97', `Ref: ${referenceNumber}`);
-  setTextFieldSafe(form, 'Text Field 96', `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`);
-  setTextFieldSafe(form, 'Text Field 95', data.goal || '');
-  setTextFieldSafe(form, 'Text Field 94', digitalSignature);
+  // BVN/NIN fields in this client template are unnamed generics.
+  setTextFieldSafe(form, 'Text Field 100', data.bvn || '');
+  setTextFieldSafe(form, 'Text Field 86', data.nin || '');
 
   form.flatten();
   return await pdf.save();
