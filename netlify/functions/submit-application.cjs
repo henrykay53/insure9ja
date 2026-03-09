@@ -10,6 +10,7 @@ const TEMPLATE_PATHS = {
 
 const TRADITIONAL_FORM_VERSION = 'traditional-dec-2025-v1';
 const ANNUITY_FORM_VERSION = 'annuity-dec-2026-v1';
+const PDF_PREFILL_ENABLED = process.env.ENABLE_PDF_PREFILL === 'true';
 
 const ensureTemplateExists = async (templatePath) => {
   try {
@@ -180,6 +181,23 @@ const fillAnnuityForm = async (bytes, payload, referenceNumber) => {
   return await pdf.save();
 };
 
+const buildFormAttachment = async ({
+  templateBytes,
+  isAnnuity,
+  payload,
+  referenceNumber,
+  prefillEnabled,
+}) => {
+  if (!prefillEnabled) {
+    // Keep client template untouched until a confirmed field map is available.
+    return templateBytes;
+  }
+
+  return isAnnuity
+    ? await fillAnnuityForm(templateBytes, payload, referenceNumber)
+    : await fillTraditionalForm(templateBytes, payload, referenceNumber);
+};
+
 const buildSummaryPdf = async (payload, referenceNumber) => {
   const { data, digitalSignature, quoteLabel, quoteAmount } = payload;
   const pdf = await PDFDocument.create();
@@ -234,7 +252,7 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   return await pdf.save();
 };
 
-const buildHtmlSummary = (payload, referenceNumber) => {
+const buildHtmlSummary = (payload, referenceNumber, prefillEnabled) => {
   const { data, quoteLabel, quoteAmount } = payload;
   const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
   return `
@@ -249,7 +267,11 @@ const buildHtmlSummary = (payload, referenceNumber) => {
       <p><strong>Coverage/Contribution:</strong> ${data.coverageAmount || 'N/A'}</p>
       <p><strong>DOB:</strong> ${formatDate(data.personalDOB || data.dateOfBirth) || 'N/A'}</p>
       <hr />
-      <p>This email includes attached prefilled proposal form and an application summary PDF.</p>
+      <p>${
+        prefillEnabled
+          ? 'This email includes attached prefilled proposal form and an application summary PDF.'
+          : 'This email includes the official blank proposal form and a fully filled application summary PDF for internal completion.'
+      }</p>
     </div>
   `;
 };
@@ -302,9 +324,13 @@ exports.handler = async (event) => {
     await ensureTemplateExists(templatePath);
     const templateBytes = await fs.readFile(templatePath);
 
-    const formPdfBytes = isAnnuity
-      ? await fillAnnuityForm(templateBytes, payload, referenceNumber)
-      : await fillTraditionalForm(templateBytes, payload, referenceNumber);
+    const formPdfBytes = await buildFormAttachment({
+      templateBytes,
+      isAnnuity,
+      payload,
+      referenceNumber,
+      prefillEnabled: PDF_PREFILL_ENABLED,
+    });
 
     const summaryPdfBytes = await buildSummaryPdf(payload, referenceNumber);
     const resend = new Resend(apiKey);
@@ -314,7 +340,11 @@ exports.handler = async (event) => {
       to: [toEmail],
       replyTo: data.email || undefined,
       subject: `New Application ${referenceNumber} - ${data.goal}`,
-      html: buildHtmlSummary({ data, quoteLabel, quoteAmount }, referenceNumber),
+      html: buildHtmlSummary(
+        { data, quoteLabel, quoteAmount },
+        referenceNumber,
+        PDF_PREFILL_ENABLED,
+      ),
       attachments: [
         {
           filename: isAnnuity
