@@ -18,6 +18,13 @@ const ensureTemplateExists = async (templatePath) => {
   }
 };
 
+const normalizeError = (error) => {
+  if (!error) return { code: 'UNKNOWN', message: 'Unknown error' };
+  const code = error.code || error.name || 'UNKNOWN';
+  const message = error.message || String(error);
+  return { code: String(code), message: String(message) };
+};
+
 const formatDate = (value) => {
   if (!value) return '';
   const [year, month, day] = value.split('-');
@@ -263,7 +270,9 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('submit-application failed', error);
-    if (error?.code === 'TEMPLATE_NOT_FOUND' || error?.code === 'ENOENT') {
+    const normalized = normalizeError(error);
+
+    if (normalized.code === 'TEMPLATE_NOT_FOUND' || normalized.code === 'ENOENT') {
       return {
         statusCode: 500,
         body: JSON.stringify({
@@ -273,12 +282,16 @@ exports.handler = async (event) => {
       };
     }
 
-    if (error?.code === 'RESEND_SEND_FAILED') {
+    if (
+      normalized.code === 'RESEND_SEND_FAILED' ||
+      normalized.code === 'validation_error' ||
+      normalized.code === 'unknown_error' ||
+      normalized.code.toLowerCase().includes('resend')
+    ) {
       return {
         statusCode: 502,
         body: JSON.stringify({
-          error:
-            'Email submission failed at the mail provider. Please verify sender configuration and try again.',
+          error: `Email submission failed at the mail provider: ${normalized.message}`,
         }),
       };
     }
@@ -286,7 +299,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: 'Application submission failed. Please try again.',
+        error: `Application submission failed (${normalized.code}): ${normalized.message}`,
       }),
     };
   }
