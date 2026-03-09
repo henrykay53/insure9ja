@@ -8,6 +8,9 @@ const TEMPLATE_PATHS = {
   annuity: path.resolve(process.cwd(), 'assets/forms/annuity-proposal-form.pdf'),
 };
 
+const TRADITIONAL_FORM_VERSION = 'traditional-dec-2025-v1';
+const ANNUITY_FORM_VERSION = 'annuity-dec-2026-v1';
+
 const ensureTemplateExists = async (templatePath) => {
   try {
     await fs.access(templatePath);
@@ -64,21 +67,100 @@ const setTextFieldSafe = (form, fieldName, value) => {
   }
 };
 
+const getTraditionalFieldMap = (data) => [
+  { field: 'CD_Surname', value: data.lastName, required: true, source: 'lastName' },
+  { field: 'CD_FirstName', value: data.firstName, required: true, source: 'firstName' },
+  { field: 'CD_MiddleName', value: '', required: false, source: 'middleName' },
+  {
+    field: 'CD_D.O.B',
+    value: formatDate(data.personalDOB || data.dateOfBirth),
+    required: true,
+    source: 'personalDOB/dateOfBirth',
+  },
+  { field: 'CD_EmailAddress', value: data.email, required: true, source: 'email' },
+  { field: 'CD_Telephone', value: cleanPhone(data.phoneNumber), required: true, source: 'phoneNumber' },
+  { field: 'CD_Nationality', value: 'Nigerian', required: false, source: 'constant' },
+  // In this template revision these generic fields correspond to BVN/NIN visually.
+  { field: 'Text Field 100', value: data.bvn || '', required: false, source: 'bvn' },
+  { field: 'Text Field 86', value: data.nin || '', required: false, source: 'nin' },
+];
+
+const getAnnuityFieldMap = (data, referenceNumber, quoteLabel, quoteAmount, digitalSignature) => [
+  { field: 'Text Field 97', value: `Ref: ${referenceNumber}`, required: false, source: 'reference' },
+  {
+    field: 'Text Field 96',
+    value: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+    required: true,
+    source: 'firstName/lastName',
+  },
+  { field: 'Text Field 95', value: data.email, required: true, source: 'email' },
+  { field: 'Text Field 94', value: cleanPhone(data.phoneNumber), required: true, source: 'phoneNumber' },
+  {
+    field: 'Text Field 90',
+    value: `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`,
+    required: false,
+    source: 'quote',
+  },
+  { field: 'Text Field 89', value: data.coverageAmount || '', required: false, source: 'coverageAmount' },
+  {
+    field: 'Text Field 88',
+    value: formatDate(data.personalDOB || data.dateOfBirth),
+    required: false,
+    source: 'personalDOB/dateOfBirth',
+  },
+  { field: 'Text Field 87', value: data.annuityOption || '', required: false, source: 'annuityOption' },
+  { field: 'Text Field 86', value: digitalSignature, required: false, source: 'digitalSignature' },
+];
+
+const applyMappedFields = (form, mappings, templateVersion) => {
+  const availableFields = new Set(form.getFields().map((f) => f.getName()));
+  const missingMappedFields = [];
+  const emptyRequiredValues = [];
+
+  for (const mapping of mappings) {
+    const hasField = availableFields.has(mapping.field);
+    if (!hasField) {
+      if (mapping.required) {
+        missingMappedFields.push(mapping.field);
+      }
+      continue;
+    }
+
+    const normalizedValue = String(mapping.value ?? '').trim();
+    if (!normalizedValue) {
+      if (mapping.required) {
+        emptyRequiredValues.push(`${mapping.source}->${mapping.field}`);
+      }
+      continue;
+    }
+
+    setTextFieldSafe(form, mapping.field, normalizedValue);
+  }
+
+  if (missingMappedFields.length > 0) {
+    const error = new Error(
+      `Required mapped fields missing in template ${templateVersion}: ${missingMappedFields.join(', ')}`,
+    );
+    error.code = 'PDF_MAPPING_FIELDS_MISSING';
+    throw error;
+  }
+
+  if (emptyRequiredValues.length > 0) {
+    const error = new Error(
+      `Required values missing for template ${templateVersion}: ${emptyRequiredValues.join(', ')}`,
+    );
+    error.code = 'PDF_MAPPING_VALUES_MISSING';
+    throw error;
+  }
+};
+
 const fillTraditionalForm = async (bytes, payload, referenceNumber) => {
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
   const { data } = payload;
+  void referenceNumber;
 
-  setTextFieldSafe(form, 'CD_Surname', data.lastName);
-  setTextFieldSafe(form, 'CD_FirstName', data.firstName);
-  setTextFieldSafe(form, 'CD_MiddleName', '');
-  setTextFieldSafe(form, 'CD_D.O.B', formatDate(data.personalDOB || data.dateOfBirth));
-  setTextFieldSafe(form, 'CD_EmailAddress', data.email);
-  setTextFieldSafe(form, 'CD_Telephone', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'CD_Nationality', 'Nigerian');
-  // BVN/NIN fields in this client template are unnamed generics.
-  setTextFieldSafe(form, 'Text Field 100', data.bvn || '');
-  setTextFieldSafe(form, 'Text Field 86', data.nin || '');
+  applyMappedFields(form, getTraditionalFieldMap(data), TRADITIONAL_FORM_VERSION);
 
   form.flatten();
   return await pdf.save();
@@ -88,17 +170,11 @@ const fillAnnuityForm = async (bytes, payload, referenceNumber) => {
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
   const { data, digitalSignature, quoteLabel, quoteAmount } = payload;
-
-  // The annuity template uses generic field names; we populate core summary fields conservatively.
-  setTextFieldSafe(form, 'Text Field 97', `Ref: ${referenceNumber}`);
-  setTextFieldSafe(form, 'Text Field 96', `${data.firstName || ''} ${data.lastName || ''}`.trim());
-  setTextFieldSafe(form, 'Text Field 95', data.email);
-  setTextFieldSafe(form, 'Text Field 94', cleanPhone(data.phoneNumber));
-  setTextFieldSafe(form, 'Text Field 90', `${quoteLabel}: ${formatCurrencyForPdf(quoteAmount)}`);
-  setTextFieldSafe(form, 'Text Field 89', data.coverageAmount || '');
-  setTextFieldSafe(form, 'Text Field 88', formatDate(data.personalDOB || data.dateOfBirth));
-  setTextFieldSafe(form, 'Text Field 87', data.annuityOption || '');
-  setTextFieldSafe(form, 'Text Field 86', digitalSignature);
+  applyMappedFields(
+    form,
+    getAnnuityFieldMap(data, referenceNumber, quoteLabel, quoteAmount, digitalSignature),
+    ANNUITY_FORM_VERSION,
+  );
 
   form.flatten();
   return await pdf.save();
@@ -277,6 +353,18 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           error:
             'Submission failed because form templates are missing on the server deployment.',
+        }),
+      };
+    }
+
+    if (
+      normalized.code === 'PDF_MAPPING_FIELDS_MISSING' ||
+      normalized.code === 'PDF_MAPPING_VALUES_MISSING'
+    ) {
+      return {
+        statusCode: 422,
+        body: JSON.stringify({
+          error: `PDF mapping validation failed: ${normalized.message}`,
         }),
       };
     }
