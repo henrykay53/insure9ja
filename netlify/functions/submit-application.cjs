@@ -8,6 +8,16 @@ const TEMPLATE_PATHS = {
   annuity: path.resolve(process.cwd(), 'assets/forms/annuity-proposal-form.pdf'),
 };
 
+const ensureTemplateExists = async (templatePath) => {
+  try {
+    await fs.access(templatePath);
+  } catch {
+    const error = new Error(`Template file not found: ${templatePath}`);
+    error.code = 'TEMPLATE_NOT_FOUND';
+    throw error;
+  }
+};
+
 const formatDate = (value) => {
   if (!value) return '';
   const [year, month, day] = value.split('-');
@@ -207,6 +217,7 @@ exports.handler = async (event) => {
   try {
     const isAnnuity = data.goal === 'annuity';
     const templatePath = isAnnuity ? TEMPLATE_PATHS.annuity : TEMPLATE_PATHS.traditional;
+    await ensureTemplateExists(templatePath);
     const templateBytes = await fs.readFile(templatePath);
 
     const formPdfBytes = isAnnuity
@@ -216,7 +227,7 @@ exports.handler = async (event) => {
     const summaryPdfBytes = await buildSummaryPdf(payload, referenceNumber);
     const resend = new Resend(apiKey);
 
-    await resend.emails.send({
+    const sendResult = await resend.emails.send({
       from: fromEmail,
       to: [toEmail],
       replyTo: data.email || undefined,
@@ -227,14 +238,24 @@ exports.handler = async (event) => {
           filename: isAnnuity
             ? `annuity-proposal-${referenceNumber}.pdf`
             : `traditional-proposal-${referenceNumber}.pdf`,
-          content: Buffer.from(formPdfBytes),
+          content: Buffer.from(formPdfBytes).toString('base64'),
+          contentType: 'application/pdf',
         },
         {
           filename: `application-summary-${referenceNumber}.pdf`,
-          content: Buffer.from(summaryPdfBytes),
+          content: Buffer.from(summaryPdfBytes).toString('base64'),
+          contentType: 'application/pdf',
         },
       ],
     });
+
+    if (sendResult?.error) {
+      const resendError = new Error(
+        sendResult.error.message || 'Resend rejected the email request.',
+      );
+      resendError.code = 'RESEND_SEND_FAILED';
+      throw resendError;
+    }
 
     return {
       statusCode: 200,
@@ -242,6 +263,26 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('submit-application failed', error);
+    if (error?.code === 'TEMPLATE_NOT_FOUND' || error?.code === 'ENOENT') {
+      return {
+        statusCode: 500,
+        body: JSON.stringify({
+          error:
+            'Submission failed because form templates are missing on the server deployment.',
+        }),
+      };
+    }
+
+    if (error?.code === 'RESEND_SEND_FAILED') {
+      return {
+        statusCode: 502,
+        body: JSON.stringify({
+          error:
+            'Email submission failed at the mail provider. Please verify sender configuration and try again.',
+        }),
+      };
+    }
+
     return {
       statusCode: 500,
       body: JSON.stringify({
