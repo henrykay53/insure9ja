@@ -11,6 +11,7 @@ const accountDetails = [
 const requirements = [
   "Driver's licence",
   'Vehicle license',
+  'Most recent utility bill (light bill, waste bill, rent receipt, or page 1 of bank statement with address/date)',
   'Evidence of transfer',
   "Vehicle pictures (front, back, left, right, dashboard mileage, and driver's side VIN) for comprehensive cover",
 ];
@@ -20,6 +21,7 @@ type MotorDocKey =
   | 'payment_receipt'
   | 'drivers_licence'
   | 'vehicle_license'
+  | 'utility_bill'
   | 'passport_photo'
   | 'vehicle_front'
   | 'vehicle_back'
@@ -32,6 +34,7 @@ const BASE_DOCS: Array<{ key: MotorDocKey; label: string; accept: string }> = [
   { key: 'payment_receipt', label: 'Payment receipt', accept: '.pdf,.jpg,.jpeg,.png' },
   { key: 'drivers_licence', label: "Driver's licence", accept: '.pdf,.jpg,.jpeg,.png' },
   { key: 'vehicle_license', label: 'Vehicle license', accept: '.pdf,.jpg,.jpeg,.png' },
+  { key: 'utility_bill', label: 'Most recent utility bill', accept: '.pdf,.jpg,.jpeg,.png' },
   { key: 'passport_photo', label: 'Passport photo', accept: '.jpg,.jpeg,.png' },
 ];
 

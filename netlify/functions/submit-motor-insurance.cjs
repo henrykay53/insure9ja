@@ -13,6 +13,7 @@ const REQUIRED_DOC_TYPES = new Set([
   'payment_receipt',
   'drivers_licence',
   'vehicle_license',
+  'utility_bill',
   'passport_photo',
 ]);
 const REQUIRED_COMPREHENSIVE_DOC_TYPES = new Set([
