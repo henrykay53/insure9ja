@@ -106,6 +106,7 @@ export default function MotorInsurance() {
   };
 
   const isValid = Object.values(errors).every((error) => !error);
+  const visibleErrors = Object.values(errors).filter(Boolean);
 
   const onPickFile = (key: MotorDocKey, file: File | null) => {
     setDocFiles((prev) => {
@@ -405,6 +406,12 @@ export default function MotorInsurance() {
             )}
           </div>
 
+          {hasTriedSubmit && visibleErrors.length > 0 && (
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Complete the missing required fields and uploads above before submitting.
+            </div>
+          )}
+
           {submitError && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {submitError}
@@ -420,9 +427,9 @@ export default function MotorInsurance() {
           <button
             type="button"
             onClick={onSubmit}
-            disabled={!isValid || isSubmitting}
+            disabled={isSubmitting}
             className={`px-8 py-3 rounded-xl transition-colors ${
-              !isValid || isSubmitting
+              isSubmitting
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-900 text-white hover:bg-gray-800'
             }`}
