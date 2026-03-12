@@ -27,3 +27,6 @@ dist-ssr
 IMPLEMENTATION_CHECKLIST.md
 # Local Netlify folder
 .netlify
+
+# Netlify/Deno local lockfile
+deno.lock

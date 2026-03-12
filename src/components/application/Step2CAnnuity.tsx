@@ -1,4 +1,6 @@
 import type { ApplicationData } from './ApplicationFlow';
+import { Info } from 'lucide-react';
+import { useState } from 'react';
 import { DateDropdownInput } from './DateDropdownInput';
 import { getTodayIsoDate, isDobOnOrBeforeToday } from './dateRules';
 import { QuoteCaveat } from './QuoteCaveat';
@@ -12,6 +14,7 @@ interface Step2CAnnuityProps {
 }
 
 export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnuityProps) {
+  const [showRsaTooltip, setShowRsaTooltip] = useState(false);
   const today = getTodayIsoDate();
 
   // Calculate estimated monthly income based on contribution
@@ -32,9 +35,7 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
   const isValid = Boolean(data.coverageAmount && data.dateOfBirth && hasValidDob);
 
   const getAmountLabel = () => {
-    if (data.annuityOption === 'pfa') {
-      return 'What is your RSA balance?';
-    }
+    if (data.annuityOption === 'pfa') return 'What is your RSA balance?';
     if (data.annuityOption === 'lump-sum') {
       return 'What one-off amount do you want to pay?';
     }
@@ -51,9 +52,29 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
         <div className="space-y-6 mb-8">
           {/* Contribution/RSA Amount */}
           <div>
-            <label htmlFor="contribution" className="block text-sm font-medium text-gray-700 mb-2">
-              {getAmountLabel()}
-            </label>
+            <div className="flex items-center gap-2 mb-2">
+              <label htmlFor="contribution" className="block text-sm font-medium text-gray-700">
+                {getAmountLabel()}
+              </label>
+              {data.annuityOption === 'pfa' && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowRsaTooltip((prev) => !prev)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    aria-label="Explain RSA balance"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                  {showRsaTooltip && (
+                    <div className="absolute z-10 left-0 top-6 w-64 rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-lg">
+                      RSA means Retirement Savings Account balance, which is your retirement fund
+                      managed by your PFA.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">₦</span>
               <input

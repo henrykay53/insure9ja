@@ -57,7 +57,7 @@ export default function MotorInsurance() {
   const [vehicleMakeModel, setVehicleMakeModel] = useState('');
   const [vehicleRegNo, setVehicleRegNo] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
-  const [amountPaid, setAmountPaid] = useState('');
+  const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
   const [docFiles, setDocFiles] = useState<Partial<Record<MotorDocKey, File>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -69,19 +69,35 @@ export default function MotorInsurance() {
   );
 
   const formatNumberInput = (value: string) => value.replace(/[^\d]/g, '');
+  const formatCurrencyDisplay = (value: number) => `₦${value.toLocaleString()}`;
+  const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const validatePhone = (value: string) => /^\d{10,11}$/.test(value.replace(/\D/g, ''));
+
   const parsedCarValue = Number(carValue || '0');
   const expectedPremium =
     coverType === 'third-party' ? 15000 : Math.round((Number.isFinite(parsedCarValue) ? parsedCarValue : 0) * 0.05);
-  const parsedAmountPaid = Number(amountPaid || '0');
+  const parsedAmountPaid = expectedPremium;
   const allDocsReady = requiredDocs.every((doc) => docFiles[doc.key]);
-  const isValid =
-    Boolean(fullName.trim()) &&
-    Boolean(email.trim()) &&
-    Boolean(phone.trim()) &&
-    Boolean(paymentReference.trim()) &&
-    parsedAmountPaid > 0 &&
-    (coverType === 'third-party' || parsedCarValue > 0) &&
-    allDocsReady;
+
+  const errors = {
+    fullName:
+      fullName.trim().length < 3 ? 'Enter your full name (at least 3 characters).' : '',
+    email: validateEmail(email) ? '' : 'Enter a valid email address.',
+    phone: validatePhone(phone) ? '' : 'Enter a valid phone number (10 to 11 digits).',
+    vehicleMakeModel:
+      vehicleMakeModel.trim().length < 2 ? 'Enter vehicle make/model.' : '',
+    vehicleRegNo:
+      vehicleRegNo.trim().length < 3 ? 'Enter vehicle registration number.' : '',
+    paymentReference:
+      paymentReference.trim().length < 3 ? 'Enter a valid payment reference.' : '',
+    carValue:
+      coverType === 'comprehensive' && parsedCarValue <= 0
+        ? 'Enter the vehicle value to calculate premium.'
+        : '',
+    docs: allDocsReady ? '' : 'Upload all required documents before submitting.',
+  };
+
+  const isValid = Object.values(errors).every((error) => !error);
 
   const onPickFile = (key: MotorDocKey, file: File | null) => {
     setDocFiles((prev) => {
@@ -106,6 +122,7 @@ export default function MotorInsurance() {
     });
 
   const onSubmit = async () => {
+    setHasTriedSubmit(true);
     if (!isValid) return;
     setIsSubmitting(true);
     setSubmitError(null);
@@ -263,20 +280,39 @@ export default function MotorInsurance() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 mb-8">
           <h2 className="text-xl text-gray-900 mb-5">Applicant and Vehicle Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
-            <input value={vehicleMakeModel} onChange={(e) => setVehicleMakeModel(e.target.value)} placeholder="Vehicle make/model" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
-            <input value={vehicleRegNo} onChange={(e) => setVehicleRegNo(e.target.value)} placeholder="Vehicle registration number" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none sm:col-span-2" />
+            <div>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.fullName && <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>}
+            </div>
+            <div>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
+            </div>
+            <div>
+              <input value={phone} onChange={(e) => setPhone(formatNumberInput(e.target.value))} placeholder="Phone number" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
+            </div>
+            <div>
+              <input value={vehicleMakeModel} onChange={(e) => setVehicleMakeModel(e.target.value)} placeholder="Vehicle make/model" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.vehicleMakeModel && <p className="text-xs text-red-600 mt-1">{errors.vehicleMakeModel}</p>}
+            </div>
+            <div className="sm:col-span-2">
+              <input value={vehicleRegNo} onChange={(e) => setVehicleRegNo(e.target.value)} placeholder="Vehicle registration number" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.vehicleRegNo && <p className="text-xs text-red-600 mt-1">{errors.vehicleRegNo}</p>}
+            </div>
             {coverType === 'comprehensive' && (
               <div className="sm:col-span-2">
                 <label className="block text-sm text-gray-700 mb-2">Vehicle value (₦)</label>
-                <input
-                  value={carValue}
-                  onChange={(e) => setCarValue(formatNumberInput(e.target.value))}
-                  placeholder="e.g. 10000000"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none"
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">₦</span>
+                  <input
+                    value={carValue ? Number(carValue).toLocaleString() : ''}
+                    onChange={(e) => setCarValue(formatNumberInput(e.target.value))}
+                    placeholder="e.g. 10,000,000"
+                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none"
+                  />
+                </div>
+                {hasTriedSubmit && errors.carValue && <p className="text-xs text-red-600 mt-1">{errors.carValue}</p>}
               </div>
             )}
           </div>
@@ -285,8 +321,18 @@ export default function MotorInsurance() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7 mb-8">
           <h2 className="text-xl text-gray-900 mb-5">Payment and Uploads</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Payment reference" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
-            <input value={amountPaid} onChange={(e) => setAmountPaid(formatNumberInput(e.target.value))} placeholder="Amount paid (₦)" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+            <div>
+              <input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Payment reference" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
+              {hasTriedSubmit && errors.paymentReference && <p className="text-xs text-red-600 mt-1">{errors.paymentReference}</p>}
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-2">Amount to pay</label>
+              <input
+                value={formatCurrencyDisplay(expectedPremium)}
+                readOnly
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-100 text-gray-700 focus:outline-none"
+              />
+            </div>
           </div>
           <div className="space-y-4">
             {requiredDocs.map((doc) => (
@@ -302,14 +348,17 @@ export default function MotorInsurance() {
               </div>
             ))}
           </div>
+          {hasTriedSubmit && errors.docs && (
+            <p className="text-xs text-red-600 mt-3">{errors.docs}</p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-7">
           <h2 className="text-xl text-gray-900 mb-4">Summary</h2>
           <div className="space-y-2 text-sm text-gray-700 mb-5">
             <p><span className="text-gray-500">Cover type:</span> {coverType === 'third-party' ? 'Third-party' : 'Comprehensive'}</p>
-            <p><span className="text-gray-500">Expected premium:</span> ₦{expectedPremium.toLocaleString()}</p>
-            <p><span className="text-gray-500">Amount paid:</span> ₦{(parsedAmountPaid || 0).toLocaleString()}</p>
+            <p><span className="text-gray-500">Expected premium:</span> {formatCurrencyDisplay(expectedPremium)}</p>
+            <p><span className="text-gray-500">Amount paid:</span> {formatCurrencyDisplay(parsedAmountPaid || 0)}</p>
           </div>
 
           {submitError && (
