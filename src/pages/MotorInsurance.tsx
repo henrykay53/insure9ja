@@ -420,7 +420,8 @@ export default function MotorInsurance() {
 
           {referenceNumber && (
             <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-              Submission complete. Reference: <span className="font-semibold">{referenceNumber}</span>
+              Submission complete. Reference: <span className="font-semibold">{referenceNumber}</span>.
+              Certificate of motor insurance from Custodian will be sent to your email within the next 24 working hours.
             </div>
           )}
 
