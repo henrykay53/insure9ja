@@ -5,6 +5,16 @@ export interface SubmissionPayload {
   digitalSignature: string;
   quoteLabel: string;
   quoteAmount: number;
+  paymentReference?: string;
+  paymentAmount?: number;
+  uploadedDocuments?: UploadedDocumentPayload[];
+}
+
+export interface UploadedDocumentPayload {
+  docType: string;
+  filename: string;
+  mimeType: string;
+  contentBase64: string;
 }
 
 export interface SubmissionResult {
@@ -39,19 +49,23 @@ export async function submitApplication(payload: SubmissionPayload): Promise<Sub
   }
 
   const result = await response.json().catch(() => null);
+  const parsed =
+    result && typeof result === 'object'
+      ? (result as { error?: string; referenceNumber?: string })
+      : null;
 
   if (!response.ok) {
     const message =
-      result?.error ||
+      parsed?.error ||
       'We could not submit your application at this time. Please try again.';
     throw new Error(message);
   }
 
-  if (!result?.referenceNumber) {
+  if (!parsed?.referenceNumber) {
     throw new Error('Submission completed but no reference number was returned.');
   }
 
   return {
-    referenceNumber: result.referenceNumber as string,
+    referenceNumber: parsed.referenceNumber,
   };
 }

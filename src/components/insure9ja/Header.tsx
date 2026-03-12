@@ -18,6 +18,7 @@ export function Header({ onStartApplication }: HeaderProps) {
     { label: "Home", to: "/" },
     { label: "Life Insurance", to: "/life-insurance" },
     { label: "Annuity", to: "/annuity" },
+    { label: "Motor Insurance", to: "/motor-insurance" },
     { label: "About", to: "/about" },
     { label: "FAQs", to: "/faqs" },
   ];

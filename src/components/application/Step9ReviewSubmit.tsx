@@ -3,6 +3,7 @@ import type  { ApplicationData } from './ApplicationFlow';
 import { FileCheck, Edit2 } from 'lucide-react';
 import { QuoteCaveat } from './QuoteCaveat';
 import { getAnnuityPayout, getNonRefundablePremium, getRefundablePremium } from '@/lib/quotation';
+import type { UploadedDocumentPayload } from '@/lib/submission';
 import { submitApplication } from '@/lib/submission';
 
 interface Step9ReviewSubmitProps {
@@ -12,25 +13,123 @@ interface Step9ReviewSubmitProps {
   onComplete: (referenceNumber: string) => void;
 }
 
+type RequiredDocKey = 'payment_receipt' | 'valid_id' | 'utility_bill' | 'passport_photo';
+
+const REQUIRED_DOCUMENTS: Array<{
+  key: RequiredDocKey;
+  label: string;
+  hint: string;
+  accept: string;
+}> = [
+  {
+    key: 'payment_receipt',
+    label: 'Payment receipt',
+    hint: 'Upload transfer receipt (PDF/JPG/PNG, max 4MB)',
+    accept: '.pdf,.jpg,.jpeg,.png',
+  },
+  {
+    key: 'valid_id',
+    label: 'Valid means of ID',
+    hint: 'National ID, passport, voters card, or drivers licence',
+    accept: '.pdf,.jpg,.jpeg,.png',
+  },
+  {
+    key: 'utility_bill',
+    label: 'Utility bill',
+    hint: 'Recent utility bill document',
+    accept: '.pdf,.jpg,.jpeg,.png',
+  },
+  {
+    key: 'passport_photo',
+    label: 'Passport photo',
+    hint: 'Clear passport-style photo (JPG/PNG)',
+    accept: '.jpg,.jpeg,.png',
+  },
+];
+
+const ACCOUNT_DETAILS = [
+  { bank: 'GT Bank', accountNumber: '0003033066' },
+  { bank: 'Zenith Bank', accountNumber: '1011564309' },
+  { bank: 'First Bank', accountNumber: '2003014725' },
+];
+
 export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9ReviewSubmitProps) {
   const [declarationChecked, setDeclarationChecked] = useState(false);
   const [digitalSignature, setDigitalSignature] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [documentFiles, setDocumentFiles] = useState<Record<RequiredDocKey, File | null>>({
+    payment_receipt: null,
+    valid_id: null,
+    utility_bill: null,
+    passport_photo: null,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const hasValidSignature = digitalSignature.trim().length > 1;
+  const hasValidPaymentReference = paymentReference.trim().length > 2;
+  const parsedPaymentAmount = Number(paymentAmount.replace(/,/g, '').trim());
+  const hasValidPaymentAmount = Number.isFinite(parsedPaymentAmount) && parsedPaymentAmount > 0;
+  const allRequiredDocsPresent = REQUIRED_DOCUMENTS.every((doc) => documentFiles[doc.key]);
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = String(reader.result || '');
+        const [, base64 = ''] = result.split(',');
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error(`Could not read file ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+
+  const handleDocumentChange = (key: RequiredDocKey, file: File | null) => {
+    setDocumentFiles((prev) => ({
+      ...prev,
+      [key]: file,
+    }));
+  };
+
+  const toUploadedDocumentsPayload = async (): Promise<UploadedDocumentPayload[]> => {
+    const items = await Promise.all(
+      REQUIRED_DOCUMENTS.map(async (doc) => {
+        const file = documentFiles[doc.key];
+        if (!file) {
+          throw new Error(`Please upload ${doc.label.toLowerCase()}.`);
+        }
+        const sizeLimit = 4 * 1024 * 1024;
+        if (file.size > sizeLimit) {
+          throw new Error(`${doc.label} exceeds 4MB. Please upload a smaller file.`);
+        }
+        const contentBase64 = await fileToBase64(file);
+        return {
+          docType: doc.key,
+          filename: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          contentBase64,
+        };
+      }),
+    );
+    return items;
+  };
 
   const handleSubmit = async () => {
-    if (!declarationChecked || !hasValidSignature) return;
+    if (!declarationChecked || !hasValidSignature || !hasValidPaymentReference || !hasValidPaymentAmount) return;
     
     setIsSubmitting(true);
     setSubmitError(null);
 
     try {
+      const uploadedDocuments = await toUploadedDocumentsPayload();
       const result = await submitApplication({
         data,
         digitalSignature: digitalSignature.trim(),
         quoteLabel: quote.label,
         quoteAmount: quote.amount,
+        paymentReference: paymentReference.trim(),
+        paymentAmount: parsedPaymentAmount,
+        uploadedDocuments,
       });
       onComplete(result.referenceNumber);
     } catch (error) {
@@ -329,6 +428,84 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
           </div>
         </div>
 
+        {/* Section 6: Payment Details */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Details</h3>
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <div className="rounded-xl bg-white border border-gray-200 p-4 mb-4">
+              <p className="text-sm text-gray-600 mb-1">Account Name</p>
+              <p className="text-base font-medium text-gray-900">Custodian and Allied Insurance Limited</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+              {ACCOUNT_DETAILS.map((account) => (
+                <div key={account.bank} className="rounded-xl bg-white border border-gray-200 p-3">
+                  <p className="text-xs text-gray-600 mb-1">{account.bank}</p>
+                  <p className="text-sm font-semibold text-gray-900">{account.accountNumber}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Payment reference <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="Enter transfer reference"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Amount paid (₦) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="e.g. 120000"
+                  disabled={isSubmitting}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 7: Document Uploads */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Uploads</h3>
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 space-y-4">
+            {REQUIRED_DOCUMENTS.map((doc) => (
+              <div key={doc.key} className="rounded-xl bg-white border border-gray-200 p-4">
+                <label className="block text-sm font-medium text-gray-800 mb-1">
+                  {doc.label} <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-3">{doc.hint}</p>
+                <input
+                  type="file"
+                  accept={doc.accept}
+                  disabled={isSubmitting}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    handleDocumentChange(doc.key, file);
+                  }}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-900 file:px-4 file:py-2 file:text-sm file:text-white hover:file:bg-gray-800"
+                />
+                {documentFiles[doc.key] && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    Selected: {documentFiles[doc.key]?.name}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Declaration Section */}
         <div className="mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
@@ -393,9 +570,21 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!declarationChecked || !hasValidSignature || isSubmitting}
+          disabled={
+            !declarationChecked ||
+            !hasValidSignature ||
+            !hasValidPaymentReference ||
+            !hasValidPaymentAmount ||
+            !allRequiredDocsPresent ||
+            isSubmitting
+          }
           className={`px-8 py-3 rounded-xl transition-all flex items-center gap-2 ${
-            declarationChecked && hasValidSignature && !isSubmitting
+            declarationChecked &&
+            hasValidSignature &&
+            hasValidPaymentReference &&
+            hasValidPaymentAmount &&
+            allRequiredDocsPresent &&
+            !isSubmitting
               ? 'bg-gray-900 text-white hover:bg-gray-800'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}

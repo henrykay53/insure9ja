@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const { Resend } = require('resend');
+const { createPersistenceProvider } = require('./_lib/persistence.cjs');
 
 const TEMPLATE_PATHS = {
   traditional: path.resolve(process.cwd(), 'assets/forms/traditional-proposal-form.pdf'),
@@ -11,6 +12,20 @@ const TEMPLATE_PATHS = {
 const TRADITIONAL_FORM_VERSION = 'traditional-dec-2025-v1';
 const ANNUITY_FORM_VERSION = 'annuity-dec-2026-v1';
 const PDF_PREFILL_ENABLED = process.env.ENABLE_PDF_PREFILL === 'true';
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+]);
+const MAX_UPLOAD_FILE_BYTES = 4 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_BYTES = 20 * 1024 * 1024;
+const REQUIRED_DOC_TYPES = new Set([
+  'payment_receipt',
+  'valid_id',
+  'utility_bill',
+  'passport_photo',
+]);
 
 const ensureTemplateExists = async (templatePath) => {
   try {
@@ -27,6 +42,91 @@ const normalizeError = (error) => {
   const code = error.code || error.name || 'UNKNOWN';
   const message = error.message || String(error);
   return { code: String(code), message: String(message) };
+};
+
+const jsonResponse = (statusCode, body) => ({
+  statusCode,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify(body),
+});
+
+const decodeBase64 = (contentBase64) => {
+  try {
+    return Buffer.from(contentBase64, 'base64');
+  } catch {
+    const error = new Error('Invalid base64 document content.');
+    error.code = 'INVALID_DOCUMENT_BASE64';
+    throw error;
+  }
+};
+
+const normalizeUploadedDocuments = (uploadedDocuments) => {
+  if (!Array.isArray(uploadedDocuments)) return [];
+
+  let totalBytes = 0;
+  const normalized = uploadedDocuments.map((doc, index) => {
+    const filename = String(doc?.filename || '').trim();
+    const docType = String(doc?.docType || '').trim();
+    const mimeType = String(doc?.mimeType || '').trim().toLowerCase();
+    const contentBase64 = String(doc?.contentBase64 || '').trim();
+    const binary = decodeBase64(contentBase64);
+    const sizeBytes = binary.byteLength;
+
+    if (!filename || !docType || !mimeType || !contentBase64) {
+      const error = new Error(`Document ${index + 1} is missing required fields.`);
+      error.code = 'DOCUMENT_FIELDS_MISSING';
+      throw error;
+    }
+
+    if (!ALLOWED_UPLOAD_MIME_TYPES.has(mimeType)) {
+      const error = new Error(
+        `Document ${filename} has unsupported type ${mimeType}. Allowed: PDF, JPG, PNG.`,
+      );
+      error.code = 'DOCUMENT_TYPE_NOT_ALLOWED';
+      throw error;
+    }
+
+    if (sizeBytes > MAX_UPLOAD_FILE_BYTES) {
+      const error = new Error(
+        `Document ${filename} exceeds max size of ${Math.round(MAX_UPLOAD_FILE_BYTES / (1024 * 1024))}MB.`,
+      );
+      error.code = 'DOCUMENT_TOO_LARGE';
+      throw error;
+    }
+
+    totalBytes += sizeBytes;
+    return {
+      docType,
+      filename,
+      mimeType,
+      sizeBytes,
+      contentBase64,
+    };
+  });
+
+  if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+    const error = new Error(
+      `Total upload size exceeds ${Math.round(MAX_TOTAL_UPLOAD_BYTES / (1024 * 1024))}MB.`,
+    );
+    error.code = 'DOCUMENT_TOTAL_TOO_LARGE';
+    throw error;
+  }
+
+  const docTypesPresent = new Set(normalized.map((doc) => doc.docType));
+  const missingRequiredDocTypes = [...REQUIRED_DOC_TYPES].filter(
+    (docType) => !docTypesPresent.has(docType),
+  );
+  if (missingRequiredDocTypes.length > 0) {
+    const error = new Error(
+      `Missing required uploads: ${missingRequiredDocTypes.join(', ')}.`,
+    );
+    error.code = 'DOCUMENT_REQUIRED_MISSING';
+    throw error;
+  }
+
+  return normalized;
 };
 
 const formatDate = (value) => {
@@ -240,6 +340,25 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   line('ID Type', data.idType || '');
   line('ID Number', data.idNumber || '');
   y -= 6;
+  line('Health', '', true);
+  line('Serious Medical Condition', data.hasMedicalCondition === true ? 'Yes' : 'No');
+  if (Array.isArray(data.medicalConditions) && data.medicalConditions.length > 0) {
+    line('Medical Conditions', data.medicalConditions.join(', '));
+  }
+  line('Other Condition', data.otherCondition || '');
+  line('Height (cm)', data.height || '');
+  line('Weight (kg)', data.weight || '');
+  if (data.smokes !== undefined) {
+    line('Smoker', data.smokes ? 'Yes' : 'No');
+  }
+  if (data.onMedication !== undefined) {
+    line('On Medication', data.onMedication ? 'Yes' : 'No');
+  }
+  line('Medication Details', data.medicationDetails || '');
+  if (data.liveOutsideNigeria !== undefined) {
+    line('Live Outside Nigeria', data.liveOutsideNigeria ? 'Yes' : 'No');
+  }
+  y -= 6;
   line('Beneficiaries', `${Array.isArray(data.beneficiaries) ? data.beneficiaries.length : 0}`);
   if (Array.isArray(data.beneficiaries)) {
     for (const b of data.beneficiaries.slice(0, 6)) {
@@ -252,9 +371,12 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   return await pdf.save();
 };
 
-const buildHtmlSummary = (payload, referenceNumber, prefillEnabled) => {
-  const { data, quoteLabel, quoteAmount } = payload;
+const buildHtmlSummary = (payload, referenceNumber, prefillEnabled, uploadedDocuments = []) => {
+  const { data, quoteLabel, quoteAmount, paymentReference, paymentAmount } = payload;
   const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+  const docsList = uploadedDocuments
+    .map((doc) => `<li>${doc.docType}: ${doc.filename}</li>`)
+    .join('');
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
       <h2 style="margin-bottom:8px">New Insure9ja Application</h2>
@@ -266,6 +388,13 @@ const buildHtmlSummary = (payload, referenceNumber, prefillEnabled) => {
       <p><strong>${quoteLabel}:</strong> ₦${Number(quoteAmount || 0).toLocaleString()}</p>
       <p><strong>Coverage/Contribution:</strong> ${data.coverageAmount || 'N/A'}</p>
       <p><strong>DOB:</strong> ${formatDate(data.personalDOB || data.dateOfBirth) || 'N/A'}</p>
+      <p><strong>Payment Reference:</strong> ${paymentReference || 'N/A'}</p>
+      <p><strong>Payment Amount:</strong> ${paymentAmount ? `₦${Number(paymentAmount).toLocaleString()}` : 'N/A'}</p>
+      <p><strong>Health Status:</strong> ${
+        data.hasMedicalCondition === true ? 'Medical condition declared' : 'No serious condition declared'
+      }</p>
+      <p><strong>Uploaded Documents:</strong></p>
+      <ul>${docsList || '<li>None</li>'}</ul>
       <hr />
       <p>${
         prefillEnabled
@@ -278,28 +407,19 @@ const buildHtmlSummary = (payload, referenceNumber, prefillEnabled) => {
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
+    return jsonResponse(405, { error: 'Method not allowed' });
   }
 
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
   } catch {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Invalid JSON payload' }),
-    };
+    return jsonResponse(400, { error: 'Invalid JSON payload' });
   }
 
-  const { data, digitalSignature, quoteLabel, quoteAmount } = payload || {};
+  const { data, digitalSignature, quoteLabel, quoteAmount, paymentReference, paymentAmount } = payload || {};
   if (!data || !digitalSignature || !data.goal) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: 'Missing required submission details' }),
-    };
+    return jsonResponse(400, { error: 'Missing required submission details' });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -307,18 +427,40 @@ exports.handler = async (event) => {
   const toEmail = process.env.RESEND_TO_EMAIL || 'aedada@custodianinsurance.com';
 
   if (!apiKey || !fromEmail) {
-    return {
-      statusCode: 503,
-      body: JSON.stringify({
-        error:
-          'Submission service is not configured yet. Please try again shortly.',
-      }),
-    };
+    return jsonResponse(503, {
+      error: 'Submission service is not configured yet. Please try again shortly.',
+    });
   }
 
   const referenceNumber = generateReference();
+  const persistence = createPersistenceProvider(process.env);
 
   try {
+    const uploadedDocuments = normalizeUploadedDocuments(payload?.uploadedDocuments);
+    const applicantFullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
+    const persistedApplication = await persistence.createApplication({
+      publicRef: referenceNumber,
+      applicantFullName,
+      email: data.email || null,
+      phone: cleanPhone(data.phoneNumber) || null,
+      productType: data.goal,
+      payloadJson: payload,
+      paymentReference: paymentReference || null,
+      paymentAmount: paymentAmount || null,
+      status: 'submitted',
+    });
+
+    if (uploadedDocuments.length > 0) {
+      await persistence.addDocuments(
+        persistedApplication.id,
+        uploadedDocuments.map((doc) => ({
+          ...doc,
+          storageBucket: null,
+          storagePath: null,
+        })),
+      );
+    }
+
     const isAnnuity = data.goal === 'annuity';
     const templatePath = isAnnuity ? TEMPLATE_PATHS.annuity : TEMPLATE_PATHS.traditional;
     await ensureTemplateExists(templatePath);
@@ -334,6 +476,11 @@ exports.handler = async (event) => {
 
     const summaryPdfBytes = await buildSummaryPdf(payload, referenceNumber);
     const resend = new Resend(apiKey);
+    const supportingDocuments = uploadedDocuments.map((doc) => ({
+      filename: doc.filename,
+      content: doc.contentBase64,
+      contentType: doc.mimeType,
+    }));
 
     const sendResult = await resend.emails.send({
       from: fromEmail,
@@ -341,9 +488,10 @@ exports.handler = async (event) => {
       replyTo: data.email || undefined,
       subject: `New Application ${referenceNumber} - ${data.goal}`,
       html: buildHtmlSummary(
-        { data, quoteLabel, quoteAmount },
+        { data, quoteLabel, quoteAmount, paymentReference, paymentAmount },
         referenceNumber,
         PDF_PREFILL_ENABLED,
+        uploadedDocuments,
       ),
       attachments: [
         {
@@ -358,6 +506,7 @@ exports.handler = async (event) => {
           content: Buffer.from(summaryPdfBytes).toString('base64'),
           contentType: 'application/pdf',
         },
+        ...supportingDocuments,
       ],
     });
 
@@ -369,34 +518,53 @@ exports.handler = async (event) => {
       throw resendError;
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ referenceNumber }),
-    };
+    await persistence.addEvent(persistedApplication.id, 'emailed', {
+      toEmail,
+      referenceNumber,
+      uploadedDocumentCount: uploadedDocuments.length,
+    });
+
+    return jsonResponse(200, { referenceNumber });
   } catch (error) {
     console.error('submit-application failed', error);
     const normalized = normalizeError(error);
 
     if (normalized.code === 'TEMPLATE_NOT_FOUND' || normalized.code === 'ENOENT') {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({
-          error:
-            'Submission failed because form templates are missing on the server deployment.',
-        }),
-      };
+      return jsonResponse(500, {
+        error: 'Submission failed because form templates are missing on the server deployment.',
+      });
+    }
+
+    if (
+      normalized.code === 'SUPABASE_CONFIG_MISSING' ||
+      normalized.code === 'SUPABASE_INSERT_FAILED' ||
+      normalized.code === 'SUPABASE_EMPTY_INSERT_RESULT'
+    ) {
+      return jsonResponse(503, {
+        error: `Submission persistence error: ${normalized.message}`,
+      });
+    }
+
+    if (
+      normalized.code === 'DOCUMENT_FIELDS_MISSING' ||
+      normalized.code === 'DOCUMENT_TYPE_NOT_ALLOWED' ||
+      normalized.code === 'DOCUMENT_TOO_LARGE' ||
+      normalized.code === 'DOCUMENT_TOTAL_TOO_LARGE' ||
+      normalized.code === 'DOCUMENT_REQUIRED_MISSING' ||
+      normalized.code === 'INVALID_DOCUMENT_BASE64'
+    ) {
+      return jsonResponse(400, {
+        error: normalized.message,
+      });
     }
 
     if (
       normalized.code === 'PDF_MAPPING_FIELDS_MISSING' ||
       normalized.code === 'PDF_MAPPING_VALUES_MISSING'
     ) {
-      return {
-        statusCode: 422,
-        body: JSON.stringify({
-          error: `PDF mapping validation failed: ${normalized.message}`,
-        }),
-      };
+      return jsonResponse(422, {
+        error: `PDF mapping validation failed: ${normalized.message}`,
+      });
     }
 
     if (
@@ -405,19 +573,13 @@ exports.handler = async (event) => {
       normalized.code === 'unknown_error' ||
       normalized.code.toLowerCase().includes('resend')
     ) {
-      return {
-        statusCode: 502,
-        body: JSON.stringify({
-          error: `Email submission failed at the mail provider: ${normalized.message}`,
-        }),
-      };
+      return jsonResponse(502, {
+        error: `Email submission failed at the mail provider: ${normalized.message}`,
+      });
     }
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: `Application submission failed (${normalized.code}): ${normalized.message}`,
-      }),
-    };
+    return jsonResponse(500, {
+      error: `Application submission failed (${normalized.code}): ${normalized.message}`,
+    });
   }
 };

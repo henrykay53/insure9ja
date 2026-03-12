@@ -17,6 +17,7 @@ export function Footer() {
       links: [
         { label: "Life Insurance", to: "/life-insurance" },
         { label: "Annuity Plans", to: "/annuity" },
+        { label: "Motor Insurance", to: "/motor-insurance" },
       ],
     },
     {

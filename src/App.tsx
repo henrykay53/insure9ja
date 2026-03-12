@@ -6,6 +6,7 @@ import { Footer } from './components/insure9ja/Footer';
 import Home from './pages/Home';
 import Product from './pages/Product';
 import Annuity from './pages/Annuity';
+import MotorInsurance from './pages/MotorInsurance';
 import About from './pages/About';
 import Faqs from './pages/Faqs';
 import Contact from './pages/Contact';
@@ -29,6 +30,7 @@ export default function App() {
           element={<Product onStartApplication={() => setShowApplication(true)} />}
         />
         <Route path="/annuity" element={<Annuity onStartApplication={() => setShowApplication(true)} />} />
+        <Route path="/motor-insurance" element={<MotorInsurance />} />
         <Route path="/about" element={<About />} />
         <Route path="/faqs" element={<Faqs />} />
         <Route path="/contact" element={<Contact />} />
