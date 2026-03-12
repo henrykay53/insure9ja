@@ -27,8 +27,8 @@ export function Step2CAnnuityOption({
     },
     {
       id: 'lump-sum' as AnnuityOption,
-      title: 'I have a lump sum to invest',
-      description: 'Use this option if you want to invest a one-time amount to receive regular payouts.',
+      title: 'I want regular monthly payout for life',
+      description: 'Use this option if you want to pay a one-off amount and receive regular monthly payout for life.',
       hasTooltip: false,
     },
     {

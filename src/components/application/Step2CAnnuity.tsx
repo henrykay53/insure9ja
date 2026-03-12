@@ -31,6 +31,16 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
   const hasValidDob = isDobOnOrBeforeToday(data.dateOfBirth);
   const isValid = Boolean(data.coverageAmount && data.dateOfBirth && hasValidDob);
 
+  const getAmountLabel = () => {
+    if (data.annuityOption === 'pfa') {
+      return 'What is your RSA balance?';
+    }
+    if (data.annuityOption === 'lump-sum') {
+      return 'What one-off amount do you want to pay?';
+    }
+    return 'How much do you want to contribute?';
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
@@ -39,10 +49,10 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
         </h2>
 
         <div className="space-y-6 mb-8">
-          {/* Annual Contribution */}
+          {/* Contribution/RSA Amount */}
           <div>
             <label htmlFor="contribution" className="block text-sm font-medium text-gray-700 mb-2">
-              How much would you like to contribute annually?
+              {getAmountLabel()}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">₦</span>
@@ -84,7 +94,7 @@ export function Step2CAnnuity({ data, onUpdate, onContinue, onBack }: Step2CAnnu
         <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-gray-600 mb-1">Estimated monthly retirement income</div>
+              <div className="text-sm text-gray-600 mb-1">Estimated regular monthly payout for life</div>
               <div className="text-3xl font-semibold text-gray-900">
                 ₦{estimatedIncome.toLocaleString()}
               </div>

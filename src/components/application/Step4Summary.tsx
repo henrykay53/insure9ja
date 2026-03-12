@@ -82,6 +82,9 @@ export function Step4Summary({ data, onEdit, onContinue, onBack }: Step4SummaryP
   };
 
   const getDuration = () => {
+    if (data.goal === 'annuity') {
+      return 'For life';
+    }
     if (data.goal === 'refundable') {
       if (data.refundSchedule === '5-years') return '5 years';
       if (data.refundSchedule === '3-years-9') return '9 years';
