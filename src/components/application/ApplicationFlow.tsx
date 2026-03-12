@@ -58,6 +58,8 @@ export interface ApplicationData {
   otherCondition?: string;
   height?: string;
   weight?: string;
+  hobby?: string;
+  pregnant?: boolean;
   smokes?: boolean;
   onMedication?: boolean;
   medicationDetails?: string;

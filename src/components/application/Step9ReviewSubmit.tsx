@@ -409,6 +409,32 @@ export function Step9ReviewSubmit({ data, onEdit, onBack, onComplete }: Step9Rev
                 </span>
               </div>
             )}
+            {data.height && (
+              <div className="flex justify-between items-start">
+                <span className="text-sm text-gray-600">Height</span>
+                <span className="text-sm font-medium text-gray-900">{data.height} cm</span>
+              </div>
+            )}
+            {data.weight && (
+              <div className="flex justify-between items-start">
+                <span className="text-sm text-gray-600">Weight</span>
+                <span className="text-sm font-medium text-gray-900">{data.weight} kg</span>
+              </div>
+            )}
+            {data.hobby && (
+              <div className="flex justify-between items-start">
+                <span className="text-sm text-gray-600">Hobby</span>
+                <span className="text-sm font-medium text-gray-900 text-right">{data.hobby}</span>
+              </div>
+            )}
+            {data.pregnant !== undefined && (
+              <div className="flex justify-between items-start">
+                <span className="text-sm text-gray-600">Pregnant</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {data.pregnant ? 'Yes' : 'No'}
+                </span>
+              </div>
+            )}
             {data.smokes !== undefined && (
               <div className="flex justify-between items-start">
                 <span className="text-sm text-gray-600">Smoker</span>

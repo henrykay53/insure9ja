@@ -14,6 +14,8 @@ export function Step8HealthInformation({ data, onUpdate, onContinue, onBack }: S
   const otherCondition = data.otherCondition || '';
   const height = data.height || '';
   const weight = data.weight || '';
+  const hobby = data.hobby || '';
+  const pregnant = data.pregnant;
   const smokes = data.smokes;
   const onMedication = data.onMedication;
   const medicationDetails = data.medicationDetails || '';
@@ -41,9 +43,8 @@ export function Step8HealthInformation({ data, onUpdate, onContinue, onBack }: S
       return false;
     }
 
-    // If no medical condition, can proceed
-    if (hasMedicalCondition === false) {
-      return true;
+    if (!height.trim() || !weight.trim() || !hobby.trim() || pregnant === undefined) {
+      return false;
     }
 
     // If yes to medical condition, must have at least one condition selected or other filled
@@ -90,12 +91,8 @@ export function Step8HealthInformation({ data, onUpdate, onContinue, onBack }: S
                   hasMedicalCondition: false,
                   medicalConditions: [],
                   otherCondition: '',
-                  height: '',
-                  weight: '',
-                  smokes: undefined,
                   onMedication: undefined,
-                  medicationDetails: '',
-                  liveOutsideNigeria: undefined
+                  medicationDetails: ''
                 });
               }}
               className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all ${
@@ -120,14 +117,86 @@ export function Step8HealthInformation({ data, onUpdate, onContinue, onBack }: S
           </div>
         </div>
 
-        {/* No Condition Message */}
         {hasMedicalCondition === false && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
             <p className="text-sm text-green-800">
-              Great. You can continue.
+              Continue with the remaining lifestyle details below.
             </p>
           </div>
         )}
+
+        <div className="space-y-6">
+          {/* Height and Weight */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Height (cm)
+              </label>
+              <input
+                type="number"
+                value={height}
+                onChange={(e) => onUpdate({ height: e.target.value })}
+                placeholder="170"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Weight (kg)
+              </label>
+              <input
+                type="number"
+                value={weight}
+                onChange={(e) => onUpdate({ weight: e.target.value })}
+                placeholder="70"
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hobby
+            </label>
+            <input
+              type="text"
+              value={hobby}
+              onChange={(e) => onUpdate({ hobby: e.target.value })}
+              placeholder="e.g. Reading, football, gym"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Are you pregnant?
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => onUpdate({ pregnant: false })}
+                className={`flex-1 py-2.5 px-4 rounded-xl border-2 transition-all text-sm ${
+                  pregnant === false
+                    ? 'border-gray-900 bg-gray-900 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdate({ pregnant: true })}
+                className={`flex-1 py-2.5 px-4 rounded-xl border-2 transition-all text-sm ${
+                  pregnant === true
+                    ? 'border-gray-900 bg-gray-900 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
 
         {/* Detailed Section - Only if Yes */}
         {hasMedicalCondition === true && (
@@ -180,34 +249,6 @@ export function Step8HealthInformation({ data, onUpdate, onContinue, onBack }: S
                     )}
                   </div>
                 </label>
-              </div>
-            </div>
-
-            {/* Height and Weight */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Height (cm)
-                </label>
-                <input
-                  type="number"
-                  value={height}
-                  onChange={(e) => onUpdate({ height: e.target.value })}
-                  placeholder="170"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={(e) => onUpdate({ weight: e.target.value })}
-                  placeholder="70"
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900 transition-colors"
-                />
               </div>
             </div>
 

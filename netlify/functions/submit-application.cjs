@@ -348,6 +348,10 @@ const buildSummaryPdf = async (payload, referenceNumber) => {
   line('Other Condition', data.otherCondition || '');
   line('Height (cm)', data.height || '');
   line('Weight (kg)', data.weight || '');
+  line('Hobby', data.hobby || '');
+  if (data.pregnant !== undefined) {
+    line('Pregnant', data.pregnant ? 'Yes' : 'No');
+  }
   if (data.smokes !== undefined) {
     line('Smoker', data.smokes ? 'Yes' : 'No');
   }
@@ -392,6 +396,12 @@ const buildHtmlSummary = (payload, referenceNumber, prefillEnabled, uploadedDocu
       <p><strong>Payment Amount:</strong> ${paymentAmount ? `₦${Number(paymentAmount).toLocaleString()}` : 'N/A'}</p>
       <p><strong>Health Status:</strong> ${
         data.hasMedicalCondition === true ? 'Medical condition declared' : 'No serious condition declared'
+      }</p>
+      <p><strong>Height:</strong> ${data.height || 'N/A'}</p>
+      <p><strong>Weight:</strong> ${data.weight || 'N/A'}</p>
+      <p><strong>Hobby:</strong> ${data.hobby || 'N/A'}</p>
+      <p><strong>Pregnant:</strong> ${
+        data.pregnant === undefined ? 'N/A' : data.pregnant ? 'Yes' : 'No'
       }</p>
       <p><strong>Uploaded Documents:</strong></p>
       <ul>${docsList || '<li>None</li>'}</ul>
