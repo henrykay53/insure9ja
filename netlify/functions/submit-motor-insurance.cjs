@@ -137,6 +137,7 @@ const buildHtmlSummary = (payload, referenceNumber, uploadedDocuments) => {
       <p><strong>Expected Premium:</strong> ₦${Number(payload.expectedPremium || 0).toLocaleString()}</p>
       <p><strong>Amount Paid:</strong> ₦${Number(payload.amountPaid || 0).toLocaleString()}</p>
       <p><strong>Payment Reference:</strong> ${payload.paymentReference || 'N/A'}</p>
+      <p><strong>Digital Signature:</strong> ${payload.digitalSignature || 'N/A'}</p>
       <p><strong>Uploaded Documents:</strong></p>
       <ul>${docsList || '<li>None</li>'}</ul>
     </div>
@@ -155,7 +156,12 @@ exports.handler = async (event) => {
     return jsonResponse(400, { error: 'Invalid JSON payload' });
   }
 
-  if (!payload?.coverType || !payload?.applicant?.fullName || !payload?.applicant?.email) {
+  if (
+    !payload?.coverType ||
+    !payload?.applicant?.fullName ||
+    !payload?.applicant?.email ||
+    !payload?.digitalSignature
+  ) {
     return jsonResponse(400, { error: 'Missing required motor insurance details.' });
   }
 
@@ -253,4 +259,3 @@ exports.handler = async (event) => {
     return jsonResponse(500, { error: `Motor submission failed: ${normalized.message}` });
   }
 };
-

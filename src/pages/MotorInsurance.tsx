@@ -57,6 +57,8 @@ export default function MotorInsurance() {
   const [vehicleMakeModel, setVehicleMakeModel] = useState('');
   const [vehicleRegNo, setVehicleRegNo] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
+  const [declarationChecked, setDeclarationChecked] = useState(false);
+  const [digitalSignature, setDigitalSignature] = useState('');
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
   const [docFiles, setDocFiles] = useState<Partial<Record<MotorDocKey, File>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +92,9 @@ export default function MotorInsurance() {
       vehicleRegNo.trim().length < 3 ? 'Enter vehicle registration number.' : '',
     paymentReference:
       paymentReference.trim().length < 3 ? 'Enter a valid payment reference.' : '',
+    declaration: declarationChecked ? '' : 'Confirm the declaration before submitting.',
+    digitalSignature:
+      digitalSignature.trim().length < 3 ? 'Enter your full name as digital signature.' : '',
     carValue:
       coverType === 'comprehensive' && parsedCarValue <= 0
         ? 'Enter the vehicle value to calculate premium.'
@@ -150,6 +155,7 @@ export default function MotorInsurance() {
         expectedPremium,
         amountPaid: parsedAmountPaid,
         paymentReference: paymentReference.trim(),
+        digitalSignature: digitalSignature.trim(),
         applicant: {
           fullName: fullName.trim(),
           email: email.trim(),
@@ -362,6 +368,40 @@ export default function MotorInsurance() {
             <p><span className="text-gray-500">Amount paid:</span> {formatCurrencyDisplay(parsedAmountPaid || 0)}</p>
           </div>
 
+          <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={declarationChecked}
+                onChange={(e) => setDeclarationChecked(e.target.checked)}
+                className="mt-0.5 h-5 w-5 cursor-pointer rounded border-gray-300 text-gray-900 focus:ring-2 focus:ring-gray-900"
+              />
+              <span className="text-sm text-gray-700">
+                I confirm that the information and uploaded documents are true and correct to the best
+                of my knowledge.
+              </span>
+            </label>
+            {hasTriedSubmit && errors.declaration && (
+              <p className="text-xs text-red-600 mt-2">{errors.declaration}</p>
+            )}
+          </div>
+
+          <div className="mb-5">
+            <label className="block text-sm text-gray-700 mb-2">
+              Digital signature (type your full name)
+            </label>
+            <input
+              type="text"
+              value={digitalSignature}
+              onChange={(e) => setDigitalSignature(e.target.value)}
+              placeholder="Type your full name"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none"
+            />
+            {hasTriedSubmit && errors.digitalSignature && (
+              <p className="text-xs text-red-600 mt-1">{errors.digitalSignature}</p>
+            )}
+          </div>
+
           {submitError && (
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {submitError}
@@ -384,7 +424,7 @@ export default function MotorInsurance() {
                 : 'bg-gray-900 text-white hover:bg-gray-800'
             }`}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Motor Insurance'}
+            {isSubmitting ? 'Submitting...' : 'Submit application for motor insurance cover'}
           </button>
         </div>
       </div>

@@ -14,6 +14,7 @@ export interface MotorSubmissionPayload {
   expectedPremium: number;
   amountPaid: number;
   paymentReference: string;
+  digitalSignature: string;
   applicant: MotorApplicant;
   uploadedDocuments: UploadedDocumentPayload[];
 }
@@ -46,4 +47,3 @@ export async function submitMotorInsurance(
 
   return { referenceNumber: result.referenceNumber as string };
 }
-
