@@ -52,7 +52,7 @@ const COMPREHENSIVE_DOCS: Array<{ key: MotorDocKey; label: string; accept: strin
 ];
 
 export default function MotorInsurance() {
-  const [coverType, setCoverType] = useState<CoverType>('third-party');
+  const [coverType, setCoverType] = useState<CoverType>('comprehensive');
   const [carValue, setCarValue] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -190,35 +190,6 @@ export default function MotorInsurance() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <button
             type="button"
-            onClick={() => setCoverType('third-party')}
-            className={`bg-white rounded-2xl border p-6 text-left transition-colors ${
-              coverType === 'third-party' ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200'
-            }`}
-          >
-            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
-              <Shield className="w-6 h-6 text-gray-800" />
-            </div>
-            <h2 className="text-xl text-gray-900 mb-2">Third-Party Cover</h2>
-            <p className="text-sm text-gray-600 mb-4">Fixed premium from client requirements.</p>
-            <p className="text-3xl font-semibold text-gray-900">₦15,000</p>
-            <div className="mt-4 relative group">
-              <button
-                type="button"
-                aria-label="Third-party cover explanation"
-                className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <Info className="w-4 h-4" />
-                How this cover works
-              </button>
-              <div className="pointer-events-none absolute left-0 top-full mt-2 w-80 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0">
-                If an accident happens, third-party cover pays for damage to the other vehicle and
-                provides life cover for occupants of the other vehicle, up to ₦3,000,000.
-              </div>
-            </div>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setCoverType('comprehensive')}
             className={`bg-white rounded-2xl border p-6 text-left transition-colors ${
               coverType === 'comprehensive' ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200'
@@ -242,6 +213,35 @@ export default function MotorInsurance() {
               <div className="pointer-events-none absolute left-0 top-full mt-2 w-80 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0">
                 Comprehensive cover protects both your own vehicle and third-party vehicles.
                 Your cover limit is based on your vehicle value.
+              </div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCoverType('third-party')}
+            className={`bg-white rounded-2xl border p-6 text-left transition-colors ${
+              coverType === 'third-party' ? 'border-gray-900 ring-1 ring-gray-900' : 'border-gray-200'
+            }`}
+          >
+            <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
+              <Shield className="w-6 h-6 text-gray-800" />
+            </div>
+            <h2 className="text-xl text-gray-900 mb-2">Third-Party Cover</h2>
+            <p className="text-sm text-gray-600 mb-4">Fixed premium from client requirements.</p>
+            <p className="text-3xl font-semibold text-gray-900">₦15,000</p>
+            <div className="mt-4 relative group">
+              <button
+                type="button"
+                aria-label="Third-party cover explanation"
+                className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                <Info className="w-4 h-4" />
+                How this cover works
+              </button>
+              <div className="pointer-events-none absolute left-0 top-full mt-2 w-80 rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 shadow-lg opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0">
+                If an accident happens, third-party cover pays for damage to the other vehicle and
+                provides life cover for occupants of the other vehicle, up to ₦3,000,000.
               </div>
             </div>
           </button>

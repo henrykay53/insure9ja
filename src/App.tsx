@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ApplicationFlow } from './components/application/ApplicationFlow';
 import { Header } from './components/insure9ja/Header';
 import { Footer } from './components/insure9ja/Footer';
@@ -13,6 +13,16 @@ import Contact from './pages/Contact';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 
+function ScrollToTopOnRouteChange() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.pathname]);
+
+  return null;
+}
+
 export default function App() {
   const [showApplication, setShowApplication] = useState(false);
 
@@ -22,6 +32,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-white">
+      <ScrollToTopOnRouteChange />
       <Header onStartApplication={() => setShowApplication(true)} />
       <Routes>
         <Route path="/" element={<Home onStartApplication={() => setShowApplication(true)} />} />
