@@ -322,6 +322,7 @@ export default function MotorInsurance() {
           <h2 className="text-xl text-gray-900 mb-5">Payment and Uploads</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             <div>
+              <label className="block text-xs text-gray-600 mb-2">Payment reference</label>
               <input value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} placeholder="Payment reference" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:outline-none" />
               {hasTriedSubmit && errors.paymentReference && <p className="text-xs text-red-600 mt-1">{errors.paymentReference}</p>}
             </div>
